@@ -5,29 +5,22 @@ description:         Please see README.md
 homepage:            http://github.com/githubuser/hapstone#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author Here
-category:            Web
+author:              Inokentiy Babushkin
+maintainer:          inokentiy.babushkin@googlemail.com
+copyright:           2016 Inokentiy Babushkin
+category:            None
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Capstone
+  exposed-modules:     Capstone, Arm64
   build-depends:       base >= 4.7 && < 5
   default-language:    Haskell2010
   extra-libraries:     capstone
   build-tools:         c2hs
   --includes:            capstone/capstone.h
-
-executable hapstone
-  hs-source-dirs:      src
-  main-is:             Test.hs
-  build-depends:       base >= 4.7 && < 5,
-                       hapstone
-  default-language:    Haskell2010
 
 test-suite hapstone-test
   type:                exitcode-stdio-1.0

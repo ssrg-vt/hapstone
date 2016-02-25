@@ -54,6 +54,7 @@ type Csh = CSize
 -- what is this SKIPDATA business whose callback function we happily omitted?
 
 -- instruction information
+-- TODO: use high-level types
 data CsDetail = CsDetail
     { regsRead :: [CUChar]
     , regsWrite :: [CUChar]
