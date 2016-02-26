@@ -30,21 +30,25 @@ import Foreign.C.Types
     {underscoreToCase} deriving (Show)#}
 
 -- TODO: high level types
-data Arm64OpMemStruct = Arm64OpMemStruct CUInt CUInt
+data Arm64OpMemStruct = Arm64OpMemStruct CUInt CUInt CInt
 
 instance Storable Arm64OpMemStruct where
     sizeOf _ = {#sizeof arm64_op_mem#}
     alignment _ = {#alignof arm64_op_mem#}
     peek p = Arm64OpMemStruct <$> (fromIntegral <$> peek (basePtr p)) <*>
-        (fromIntegral <$> peek (indexPtr p))
-    poke p (Arm64OpMemStruct b i) = do
+        (fromIntegral <$> peek (indexPtr p)) <*>
+        (fromIntegral <$> peek (dispPtr p))
+    poke p (Arm64OpMemStruct b i d) = do
         poke (basePtr p) (fromIntegral b)
         poke (indexPtr p) (fromIntegral i)
+        poke (dispPtr p) (fromIntegral d)
 
 -- TODO: helper file
 basePtr, indexPtr :: Ptr Arm64OpMemStruct -> Ptr CUInt
 basePtr p = plusPtr p {#offsetof arm64_op_mem.base#}
 indexPtr p = plusPtr p {#offsetof arm64_op_mem.index#}
+dispPtr :: Ptr Arm64OpMemStruct -> Ptr CInt
+dispPtr p = plusPtr p {#offsetof arm64_op_mem.disp#}
 
 -- TODO: port cs_arm64_op
 -- TODO: port cs_arm64
