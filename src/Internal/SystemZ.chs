@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module SystemZ where
+module Internal.SystemZ where
 
 #include <capstone/systemz.h>
 

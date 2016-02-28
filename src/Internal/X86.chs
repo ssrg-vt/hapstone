@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module X86 where
+module Internal.X86 where
 
 -- ugly workaround because... capstone doesn't import stdbool.h
 #include <stdbool.h> 
@@ -21,7 +21,7 @@ import Foreign.C.Types
 
 {#enum x86_prefix as X86Prefix {underscoreToCase} deriving (Show)#}
 
-data X86OpMemStruct = X86OpMemStruct CUInt CUInt CUInt CInt Int64
+data X86OpMemStruct = X86OpMemStruct Word32 Word32 Word32 Int32 Int64
 
 instance Storable X86OpMemStruct where
     sizeOf _ = {#sizeof x86_op_mem#}

@@ -16,7 +16,14 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Capstone,
-                       Arm64, Arm, Mips, Ppc, Sparc, SystemZ, X86, XCore
+                       Internal.Arm64,
+                       Internal.Arm,
+                       Internal.Mips,
+                       Internal.Ppc,
+                       Internal.Sparc,
+                       Internal.SystemZ,
+                       Internal.X86,
+                       Internal.XCore
   build-depends:       base >= 4.7 && < 5
   default-language:    Haskell2010
   extra-libraries:     capstone

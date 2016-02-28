@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module XCore where
+module Internal.XCore where
 
 #include <capstone/xcore.h>
 
@@ -10,7 +10,7 @@ import Foreign.C.Types
 
 {#enum xcore_op_type as XCoreOpType {underscoreToCase} deriving (Show)#}
 
-data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 CInt
+data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32
 
 instance Storable XCoreOpMemStruct where
     sizeOf _ = {#sizeof xcore_op_mem#}

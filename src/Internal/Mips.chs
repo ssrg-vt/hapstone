@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Mips where
+module Internal.Mips where
 
 #include <capstone/mips.h>
 
@@ -11,7 +11,7 @@ import Foreign.C.Types
 {#enum mips_op_type as MipsOpType {underscoreToCase} deriving (Show)#}
 
 -- TODO: high level types
-data MipsOpMemStruct = MipsOpMemStruct CUInt Int64
+data MipsOpMemStruct = MipsOpMemStruct Word32 Int64
 
 instance Storable MipsOpMemStruct where
     sizeOf _ = {#sizeof mips_op_mem#}

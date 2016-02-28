@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Sparc where
+module Internal.Sparc where
 
 #include <capstone/sparc.h>
 

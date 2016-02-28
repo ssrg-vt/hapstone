@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Capstone where
+module Internal.Capstone where
 
 {- TODO's:
 * document all functions properly

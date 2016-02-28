@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Arm64 where
+module Internal.Arm64 where
 
 #include <capstone/arm64.h>
 
@@ -30,7 +30,7 @@ import Foreign.C.Types
     {underscoreToCase} deriving (Show)#}
 
 -- TODO: high level types
-data Arm64OpMemStruct = Arm64OpMemStruct CUInt CUInt CInt
+data Arm64OpMemStruct = Arm64OpMemStruct Word32 Word32 Int32
 
 instance Storable Arm64OpMemStruct where
     sizeOf _ = {#sizeof arm64_op_mem#}

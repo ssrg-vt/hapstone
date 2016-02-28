@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Ppc where
+module Internal.Ppc where
 
 #include <capstone/ppc.h>
 
@@ -28,7 +28,7 @@ instance Storable PpcOpMemStruct where
         {#set ppc_op_mem->base#} p (fromIntegral $ fromEnum b)
         {#set ppc_op_mem->disp#} p (fromIntegral d)
 
-data PpcOpCrxStruct = PpcOpCrxStruct CUInt PpcReg PpcBc
+data PpcOpCrxStruct = PpcOpCrxStruct Word32 PpcReg PpcBc
 
 instance Storable PpcOpCrxStruct where
     sizeOf _ = {#sizeof ppc_op_crx#}
