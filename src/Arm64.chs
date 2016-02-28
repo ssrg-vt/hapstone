@@ -35,20 +35,14 @@ data Arm64OpMemStruct = Arm64OpMemStruct CUInt CUInt CInt
 instance Storable Arm64OpMemStruct where
     sizeOf _ = {#sizeof arm64_op_mem#}
     alignment _ = {#alignof arm64_op_mem#}
-    peek p = Arm64OpMemStruct <$> (fromIntegral <$> peek (basePtr p)) <*>
-        (fromIntegral <$> peek (indexPtr p)) <*>
-        (fromIntegral <$> peek (dispPtr p))
+    peek p = Arm64OpMemStruct
+        <$> (fromIntegral <$> {#get arm64_op_mem->base#} p)
+        <*> (fromIntegral <$> {#get arm64_op_mem->index#} p)
+        <*> (fromIntegral <$> {#get arm64_op_mem->disp#} p)
     poke p (Arm64OpMemStruct b i d) = do
-        poke (basePtr p) (fromIntegral b)
-        poke (indexPtr p) (fromIntegral i)
-        poke (dispPtr p) (fromIntegral d)
-
--- TODO: helper file
-basePtr, indexPtr :: Ptr Arm64OpMemStruct -> Ptr CUInt
-basePtr p = plusPtr p {#offsetof arm64_op_mem.base#}
-indexPtr p = plusPtr p {#offsetof arm64_op_mem.index#}
-dispPtr :: Ptr Arm64OpMemStruct -> Ptr CInt
-dispPtr p = plusPtr p {#offsetof arm64_op_mem.disp#}
+        {#set arm64_op_mem->base#} p (fromIntegral b)
+        {#set arm64_op_mem->index#} p (fromIntegral i)
+        {#set arm64_op_mem->disp#} p (fromIntegral d)
 
 -- TODO: port cs_arm64_op
 -- TODO: port cs_arm64

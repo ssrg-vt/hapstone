@@ -21,39 +21,26 @@ data PpcOpMemStruct = PpcOpMemStruct PpcReg Int32
 instance Storable PpcOpMemStruct where
     sizeOf _ = {#sizeof ppc_op_mem#}
     alignment _ = {#alignof ppc_op_mem#}
-    peek p = PpcOpMemStruct <$>
-        ((toEnum . fromIntegral) <$> peek (basePtr p)) <*>
-        (fromIntegral <$> peek (dispPtr p))
+    peek p = PpcOpMemStruct
+        <$> ((toEnum . fromIntegral) <$> {#get ppc_op_mem->base#} p)
+        <*> (fromIntegral <$> {#get ppc_op_mem->disp#} p)
     poke p (PpcOpMemStruct b d) = do
-        poke (basePtr p) (fromIntegral $ fromEnum b)
-        poke (dispPtr p) (fromIntegral d)
-
--- TODO: helper file
-basePtr:: Ptr PpcOpMemStruct -> Ptr CUInt
-basePtr p = plusPtr p {#offsetof ppc_op_mem.base#}
-dispPtr :: Ptr PpcOpMemStruct -> Ptr CInt
-dispPtr p = plusPtr p {#offsetof ppc_op_mem.disp#}
+        {#set ppc_op_mem->base#} p (fromIntegral $ fromEnum b)
+        {#set ppc_op_mem->disp#} p (fromIntegral d)
 
 data PpcOpCrxStruct = PpcOpCrxStruct CUInt PpcReg PpcBc
 
 instance Storable PpcOpCrxStruct where
     sizeOf _ = {#sizeof ppc_op_crx#}
     alignment _ = {#alignof ppc_op_crx#}
-    peek p = PpcOpCrxStruct <$> (fromIntegral <$> peek (scalePtr p)) <*>
-        ((toEnum . fromIntegral) <$> peek (regPtr p)) <*>
-        ((toEnum . fromIntegral) <$> peek (condPtr p))
+    peek p = PpcOpCrxStruct
+        <$> (fromIntegral <$> {#get ppc_op_crx->scale#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get ppc_op_crx->reg#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get ppc_op_crx->cond#} p)
     poke p (PpcOpCrxStruct s r c) = do
-        poke (scalePtr p) (fromIntegral s)
-        poke (regPtr p) (fromIntegral $ fromEnum r)
-        poke (condPtr p) (fromIntegral $ fromEnum r)
-
--- TODO: helper file, also types for enums ?!
-scalePtr :: Ptr PpcOpCrxStruct -> Ptr CUInt
-scalePtr p = plusPtr p {#offsetof ppc_op_crx.scale#}
-regPtr :: Ptr PpcOpCrxStruct -> Ptr CUInt
-regPtr p = plusPtr p {#offsetof ppc_op_crx.reg#}
-condPtr :: Ptr PpcOpCrxStruct -> Ptr CUInt
-condPtr p = plusPtr p {#offsetof ppc_op_crx.cond#}
+        {#set ppc_op_crx->scale#} p (fromIntegral s)
+        {#set ppc_op_crx->reg#} p (fromIntegral $ fromEnum r)
+        {#set ppc_op_crx->cond#} p (fromIntegral $ fromEnum r)
 
 -- TODO: port cs_ppc_op struct
 -- TODO: port cs_ppc struct

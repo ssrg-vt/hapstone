@@ -16,17 +16,12 @@ data MipsOpMemStruct = MipsOpMemStruct CUInt Int64
 instance Storable MipsOpMemStruct where
     sizeOf _ = {#sizeof mips_op_mem#}
     alignment _ = {#alignof mips_op_mem#}
-    peek p = MipsOpMemStruct <$> (fromIntegral <$> peek (basePtr p)) <*>
-        (fromIntegral <$> peek (dispPtr p))
+    peek p = MipsOpMemStruct
+        <$> (fromIntegral <$> {#get mips_op_mem->base#} p)
+        <*> (fromIntegral <$> {#get mips_op_mem->disp#} p)
     poke p (MipsOpMemStruct b d) = do
-        poke (basePtr p) (fromIntegral b)
-        poke (dispPtr p) (fromIntegral d)
-
--- TODO: helper file
-basePtr :: Ptr MipsOpMemStruct -> Ptr CUInt
-basePtr p = plusPtr p {#offsetof mips_op_mem.base#}
-dispPtr :: Ptr MipsOpMemStruct -> Ptr CInt
-dispPtr p = plusPtr p {#offsetof mips_op_mem.disp#}
+        {#set mips_op_mem->base#} p (fromIntegral b)
+        {#set mips_op_mem->disp#} p(fromIntegral d)
 
 -- TODO: port cs_mips_op struct
 -- TODO: port cs_mips struct
