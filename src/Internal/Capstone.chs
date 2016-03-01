@@ -10,6 +10,8 @@ module Internal.Capstone where
   * utils
   * data declarations
   * functions
+* look at all array marshalling code and rewrite if incorrect
+* add safeguards against overflows as well
 -}
 
 #include <capstone/capstone.h>
@@ -77,25 +79,28 @@ instance Storable CsDetail where
         {#set cs_detail->groups_count#} p (fromIntegral $ length g)
         -- TODO: write arch info
 
--- TODO: maybe the apath needs to use . and not ->
+-- TODO: check whether this code is correct at all
+-- (the get hooks seem out of place)
 getRegsRead :: Ptr CsDetail -> IO [CUChar]
 getRegsRead p = join $
     peekArray <$> (fromIntegral <$> {#get cs_detail->regs_read_count#} p)
               <*> {#get cs_detail->regs_read#} p
 
--- TODO: maybe the apath needs to use . and not ->
+-- TODO: check whether this code is correct at all
+-- (the get hooks seem out of place)
 getRegsWrite :: Ptr CsDetail -> IO [CUChar]
 getRegsWrite p = join $
     peekArray <$> (fromIntegral <$> {#get cs_detail->regs_write_count#} p)
               <*> {#get cs_detail->regs_read#} p
 
--- TODO: maybe the apath needs to use . and not ->
+-- TODO: check whether this code is correct at all
+-- (the get hooks seem out of place)
 getGroups :: Ptr CsDetail -> IO [CUChar]
 getGroups p = join $
     peekArray <$> (fromIntegral <$> {#get cs_detail->groups_count#} p)
               <*> {#get cs_detail->groups#} p
 
--- maybe we need type hooks?
+-- TODO: high level types
 data CsInsn = CsInsn
     { insnId :: CUInt
     , address :: CULong
