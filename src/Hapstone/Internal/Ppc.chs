@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.Ppc where
+module Hapstone.Internal.Ppc where
 
 #include <capstone/ppc.h>
 

@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.Mips where
+module Hapstone.Internal.Mips where
 
 #include <capstone/mips.h>
 

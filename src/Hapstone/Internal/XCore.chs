@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.XCore where
+module Hapstone.Internal.XCore where
 
 #include <capstone/xcore.h>
 

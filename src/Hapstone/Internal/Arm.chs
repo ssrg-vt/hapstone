@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.Arm where
+module Hapstone.Internal.Arm where
 
 #include <capstone/arm.h>
 

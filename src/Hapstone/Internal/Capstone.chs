@@ -1,17 +1,11 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.Capstone where
+module Hapstone.Internal.Capstone where
 
 {- TODO's:
 * document all functions properly
 * decide on a consistent use of pure and impure functions
   * do we want to make everything pure? no, we can't
   * do we want to make everything IO'ish then? or just where appropriate?
-* split in multiple files
-  * utils
-  * data declarations
-  * functions
-* look at all array marshalling code and rewrite if incorrect
-* add safeguards against overflows as well
 -}
 
 #include <capstone/capstone.h>
@@ -25,6 +19,8 @@ import Foreign.C.Types
 import Foreign.C.String (peekCString, withCString)
 import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr
+
+import Hapstone.Internal.Util
 
 -- capstone's weird handle type
 type Csh = CSize
@@ -56,55 +52,47 @@ type Csh = CSize
 -- what is this SKIPDATA business whose callback function we happily omitted?
 
 -- instruction information
--- TODO: use high-level types
 data CsDetail = CsDetail
-    { regsRead :: [CUChar]
-    , regsWrite :: [CUChar]
-    , groups :: [CUChar]
+    { regsRead :: [Word8]
+    , regsWrite :: [Word8]
+    , groups :: [Word8]
     , archInfo :: () -- TODO: implement
     } deriving Show
 
 instance Storable CsDetail where
     sizeOf _ = {#sizeof cs_detail#}
     alignment _ = {#alignof cs_detail#}
-    peek p = CsDetail <$> getRegsRead p <*>
-        getRegsWrite p <*> getGroups p <*> pure ()
+    peek p = CsDetail
+        <$> do num <- fromIntegral <$> {#get cs_detail->regs_read_count#} p
+               let ptr = plusPtr p {#offsetof cs_detail->regs_read#}
+               peekArray num ptr
+        <*> do num <- fromIntegral <$> {#get cs_detail->regs_write_count#} p
+               let ptr = plusPtr p {#offsetof cs_detail->regs_write#}
+               peekArray num ptr
+        <*> do num <- fromIntegral <$> {#get cs_detail->groups_count#} p
+               let ptr = plusPtr p {#offsetof cs_detail->groups#}
+               peekArray num ptr
+        <*> pure ()
         -- TODO: read arch info
     poke p (CsDetail rR rW g _) = do
-        pokeArray (plusPtr p {#offsetof cs_detail.regs_read#}) rR
         {#set cs_detail->regs_read_count#} p (fromIntegral $ length rR)
-        pokeArray (plusPtr p {#offsetof cs_detail.regs_write#}) rW
+        if length rR > 12
+           then error "regs_read overflew 12 bytes"
+           else pokeArray (plusPtr p {#offsetof cs_detail.regs_read#}) rR
         {#set cs_detail->regs_write_count#} p (fromIntegral $ length rW)
-        pokeArray (plusPtr p {#offsetof cs_detail.groups#}) g
+        if length rW > 20
+           then error "regs_write overflew 20 bytes"
+           else pokeArray (plusPtr p {#offsetof cs_detail.regs_write#}) rW
         {#set cs_detail->groups_count#} p (fromIntegral $ length g)
+        if length g > 8
+           then error "groups overflew 8 bytes"
+           else pokeArray (plusPtr p {#offsetof cs_detail.groups#}) g
         -- TODO: write arch info
 
--- TODO: check whether this code is correct at all
--- (the get hooks seem out of place)
-getRegsRead :: Ptr CsDetail -> IO [CUChar]
-getRegsRead p = join $
-    peekArray <$> (fromIntegral <$> {#get cs_detail->regs_read_count#} p)
-              <*> {#get cs_detail->regs_read#} p
-
--- TODO: check whether this code is correct at all
--- (the get hooks seem out of place)
-getRegsWrite :: Ptr CsDetail -> IO [CUChar]
-getRegsWrite p = join $
-    peekArray <$> (fromIntegral <$> {#get cs_detail->regs_write_count#} p)
-              <*> {#get cs_detail->regs_read#} p
-
--- TODO: check whether this code is correct at all
--- (the get hooks seem out of place)
-getGroups :: Ptr CsDetail -> IO [CUChar]
-getGroups p = join $
-    peekArray <$> (fromIntegral <$> {#get cs_detail->groups_count#} p)
-              <*> {#get cs_detail->groups#} p
-
--- TODO: high level types
 data CsInsn = CsInsn
-    { insnId :: CUInt
-    , address :: CULong
-    , bytes :: [CUChar]
+    { insnId :: Word32
+    , address :: Word64
+    , bytes :: [Word8]
     , mnemonic :: String
     , opStr :: String
     , detail :: CsDetail
@@ -113,11 +101,11 @@ data CsInsn = CsInsn
 instance Storable CsInsn where
     sizeOf _ = {#sizeof cs_insn#}
     alignment _ = {#alignof cs_insn#}
-    peek p = CsInsn <$> {#get cs_insn->id#} p
-                    <*> {#get cs_insn->address#} p
-                    <*> join (peekArray <$>
-                          (fromIntegral <$> {#get cs_insn->size#} p)
-                                        <*> {#get cs_insn->bytes#} p)
+    peek p = CsInsn <$> (fromIntegral <$> {#get cs_insn->id#} p)
+                    <*> (fromIntegral <$> {#get cs_insn->address#} p)
+                    <*> do num <- fromIntegral <$> {#get cs_insn->size#} p
+                           let ptr = plusPtr p {#offsetof cs_insn->bytes#}
+                           peekArray num ptr
                     <*> (peekCString =<< {#get cs_insn->mnemonic#} p)
                     <*> (peekCString =<< {#get cs_insn->op_str#} p)
                     <*> (castPtr <$> {#get cs_insn->detail#} p >>= peek)
@@ -125,10 +113,17 @@ instance Storable CsInsn where
         {#set cs_insn->id#} p (fromIntegral i)
         {#set cs_insn->address#} p (fromIntegral a)
         {#set cs_insn->size#} p (fromIntegral $ length b)
-        pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
-        withCString m ({#set cs_insn->mnemonic#} p)
-        withCString o ({#set cs_insn->op_str#} p)
-        poke (plusPtr p {#offsetof cs_insn.detail#}) d
+        if length b > 16
+           then error "bytes overflew 16 bytes"
+           else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
+        if length m >= 32
+           then error "mnemonic overflew 32 bytes"
+           else withCString m ({#set cs_insn->mnemonic#} p)
+        if length o >= 160
+           then error "op_str overflew 160 bytes"
+           else withCString o ({#set cs_insn->op_str#} p)
+        csDetailPtr <- castPtr <$> ({#get cs_insn->detail#} p)
+        poke csDetailPtr d
 
 -- TODO: we need to port the CS_INSN_OFFSET macro somehow I assume...
 -- inlined C should be sufficient
@@ -136,11 +131,7 @@ instance Storable CsInsn where
 {#enum cs_err as CsErr {underscoreToCase} deriving (Show)#}
 
 {#fun pure cs_version as ^
-    {alloca- `Int' peek'*, alloca- `Int' peek'*} -> `Int'#}
-
--- TODO: helper file
-peek' :: (Integral a, Num b, Storable a) => Ptr a -> IO b
-peek' a = fromIntegral <$> peek a
+    {alloca- `Int' peekNum*, alloca- `Int' peekNum*} -> `Int'#}
 
 foreign import ccall "capstone/capstone.h cs_support"
     csSupport' :: CInt -> Bool
@@ -157,21 +148,17 @@ csSupport = csSupport' . fromIntegral . fromEnum
 {#fun cs_option as ^ `Enum a' =>
     {`Csh', `CsOption', getCULongFromEnum `a'} -> `CsErr'#}
 
--- TODO: helper file
-getCULongFromEnum :: Enum e => e -> CULong
-getCULongFromEnum = fromIntegral . fromEnum
-
 {#fun cs_errno as ^ {`Csh'} -> `CsErr'#}
 
 {#fun cs_strerror as ^ {`CsErr'} -> `String'#}
 
 foreign import ccall "capstone/capstone.h cs_disasm"
-    csDisasm' :: Csh -- ^ handle
-              -> Ptr CUChar -> CSize -- ^ buffer to disassemble
-              -> CULong -- ^ address to start at
-              -> CSize -- ^ number of instructins to disassemble
-              -> Ptr (Ptr CsInsn) -- ^ where to put the instructions
-              -> IO CSize -- ^ number of succesfully disassembled instructions
+    csDisasm' :: Csh -- handle
+              -> Ptr CUChar -> CSize -- buffer to disassemble
+              -> CULong -- address to start at
+              -> CSize -- number of instructins to disassemble
+              -> Ptr (Ptr CsInsn) -- where to put the instructions
+              -> IO CSize -- number of succesfully disassembled instructions
 
 csDisasm :: Csh -> [Word8] -> Word64 -> Int -> IO [CsInsn]
 csDisasm handle bytes addr num = do
@@ -195,19 +182,16 @@ csDisasm handle bytes addr num = do
 {#fun pure cs_insn_name as ^ {`Csh', `Int'} -> `String'#}
 {#fun pure cs_group_name as ^ {`Csh', `Int'} -> `String'#}
 
--- TODO: change these types to the appropriate enum types
 -- TODO: use maybe types where applicable (in a higher-level API)
-{#fun pure cs_insn_group as ^
+-- and change these types to the appropriate enum types
+-- TODO fix with ghci :/
+{-{#fun pure cs_insn_group as ^
     {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}
 {#fun pure cs_reg_read as ^
     {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}
 {#fun pure cs_reg_write as ^
-    {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}
+    {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}-}
 {#fun pure cs_op_count as ^
     {`Csh', withCast* `CsInsn', `Int'} -> `Int'#}
 {#fun pure cs_op_index as ^
     {`Csh', withCast* `CsInsn', `Int', `Int'} -> `Int'#}
-
--- TODO: helper file
-withCast :: Storable a => a -> (Ptr b -> IO c) -> IO c
-withCast a f = with a (f . castPtr)

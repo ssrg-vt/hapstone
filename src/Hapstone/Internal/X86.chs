@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.X86 where
+module Hapstone.Internal.X86 where
 
 -- ugly workaround because... capstone doesn't import stdbool.h
 #include <stdbool.h> 

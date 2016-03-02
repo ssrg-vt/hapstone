@@ -1,5 +1,5 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Internal.Arm64 where
+module Hapstone.Internal.Arm64 where
 
 #include <capstone/arm64.h>
 
@@ -88,12 +88,12 @@ instance Storable CsArm64Op where
               Arm64OpFp -> (Fp . realToFrac) <$> (peek bP :: IO CDouble)
               Arm64OpMem -> Mem <$> (peek bP :: IO Arm64OpMemStruct)
               Arm64OpRegMsr -> (Pstate . toEnum . fromIntegral) <$>
-                 (peek bP :: IO CInt) -- FIXME: is this the right type?
+                 (peek bP :: IO CInt)
               Arm64OpSys -> (Sys . fromIntegral) <$> (peek bP :: IO CUInt)
               Arm64OpPrefetch -> (Prefetch . toEnum . fromIntegral) <$>
-                 (peek bP :: IO CInt) -- FIXME: is this the right type?
+                 (peek bP :: IO CInt)
               Arm64OpBarrier -> (Barrier . toEnum . fromIntegral) <$>
-                 (peek bP :: IO CInt) -- FIXME: is this the right type?
+                 (peek bP :: IO CInt)
               _ -> return Undefined
     poke p (CsArm64Op vI va ve (sh, shV) ext val) = do
         {#set cs_arm64_op->vector_index#} p (fromIntegral vI)
@@ -121,16 +121,16 @@ instance Storable CsArm64Op where
           Mem m -> do
               poke bP m
               setType (fromIntegral $ fromEnum Arm64OpMem)
-          Pstate p -> do -- FIXME: is this the right type?
+          Pstate p -> do
               poke bP (fromIntegral $ fromEnum p :: CInt)
               setType (fromIntegral $ fromEnum Arm64OpRegMsr)
           Sys s -> do
               poke bP (fromIntegral s :: CUInt)
               setType (fromIntegral $ fromEnum Arm64OpSys)
-          Prefetch p -> do -- FIXME: is this the right type?
+          Prefetch p -> do
               poke bP (fromIntegral $ fromEnum p :: CInt)
               setType (fromIntegral $ fromEnum Arm64OpPrefetch)
-          Barrier b -> do -- FIXME: is this the right type?
+          Barrier b -> do
               poke bP (fromIntegral $ fromEnum b :: CInt)
               setType (fromIntegral $ fromEnum Arm64OpBarrier)
           _ -> setType (fromIntegral $ fromEnum Arm64OpInvalid)
@@ -157,8 +157,9 @@ instance Storable CsArm64 where
         {#set cs_arm64->update_flags#} p uF
         {#set cs_arm64->writeback#} p w
         {#set cs_arm64->op_count#} p (fromIntegral $ length o)
-        -- the proper way of writing array poking ;)
-        pokeArray (plusPtr p {#offsetof cs_arm64->operands#}) o
+        if length o > 8
+           then error "operands overflew 8 elements"
+           else pokeArray (plusPtr p {#offsetof cs_arm64->operands#}) o
 
 {#enum arm64_reg as Arm64Reg {underscoreToCase} deriving (Show)#}
 {#enum arm64_insn as Arm64Insn {underscoreToCase} deriving (Show)#}
