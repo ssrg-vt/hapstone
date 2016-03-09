@@ -35,7 +35,7 @@ instance Storable CsMipsOp where
         t <- fromIntegral <$> {#get cs_mips_op->type#} p
         let bP = plusPtr p -- FIXME: maybe alignment will bite us!
                ({#offsetof cs_mips_op.type#} + {#sizeof mips_op_type#})
-        case toEnum t :: MipsOpType of
+        case toEnum t of
           MipsOpReg -> (Reg . fromIntegral) <$> (peek bP :: IO CUInt)
           MipsOpImm -> (Imm . fromIntegral) <$> (peek bP :: IO Int64)
           MipsOpMem -> Mem <$> (peek bP :: IO MipsOpMemStruct)

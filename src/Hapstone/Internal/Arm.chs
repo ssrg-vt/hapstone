@@ -67,7 +67,7 @@ instance Storable CsArmOp where
             t <- fromIntegral <$> {#get cs_arm_op->type#} p :: IO Int
             let bP = plusPtr p -- FIXME: maybe alignment will bite us!
                    ({#offsetof cs_arm_op.type#} + {#sizeof arm_op_type#})
-            case toEnum t :: ArmOpType of
+            case toEnum t of
               ArmOpReg -> (Reg . fromIntegral) <$> (peek bP :: IO CUInt)
               ArmOpSysreg -> (Sysreg . fromIntegral) <$> (peek bP :: IO CUInt)
               ArmOpImm -> (Imm . fromIntegral) <$> (peek bP :: IO CInt)

@@ -27,8 +27,62 @@ instance Storable SparcOpMemStruct where
         {#set sparc_op_mem->index#} p (fromIntegral i)
         {#set sparc_op_mem->disp#} p (fromIntegral d)
 
--- TODO: port cs_sparc_op struct
--- TODO: port cs_sparc struct
+data CsSparcOp
+    = Reg Word32
+    | Imm Int32
+    | Mem SparcOpMemStruct
+    | Undefined
+
+instance Storable CsSparcOp where
+    sizeOf _ = {#sizeof cs_sparc_op#}
+    alignment _ = {#alignof cs_sparc_op#}
+    peek p = do
+        t <- fromIntegral <$> {#get cs_sparc_op->type#} p
+        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
+               ({#offsetof cs_sparc_op.type#} + {#sizeof sparc_op_type#})
+        case toEnum t of
+          SparcOpReg -> (Reg . toEnum . fromIntegral) <$> (peek bP :: IO CInt)
+          SparcOpImm -> Imm <$> peek bP
+          SparcOpMem -> Mem <$> peek bP
+          _ -> return Undefined
+    poke p op = do
+        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
+               ({#offsetof cs_sparc_op.type#} + {#sizeof sparc_op_type#})
+            setType = {#set cs_sparc_op->type#} p . fromIntegral . fromEnum
+        case op of
+          Reg r -> do
+              poke bP (fromIntegral $ fromEnum r :: CInt)
+              setType SparcOpReg
+          Imm i -> do
+              poke bP i
+              setType SparcOpImm
+          Mem m -> do
+              poke bP m
+              setType SparcOpMem
+          _ -> setType SparcOpInvalid
+
+data CsSparc = CsSparc
+    { cc :: SparcCc
+    , hint :: SparcHint
+    , operands :: [CsSparcOp]
+    }
+
+instance Storable CsSparc where
+    sizeOf _ = {#sizeof cs_sparc#}
+    alignment _ = {#alignof cs_sparc#}
+    peek p = CsSparc
+        <$> ((toEnum . fromIntegral) <$> {#get cs_sparc->cc#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get cs_sparc->hint#} p)
+        <*> do num <- fromIntegral <$> {#get cs_sparc->op_count#} p
+               let ptr = plusPtr p {#offsetof cs_sparc.operands#}
+               peekArray num ptr
+    poke p (CsSparc cc h o) = do
+        {#set cs_sparc->cc#} p (fromIntegral $ fromEnum cc)
+        {#set cs_sparc->hint#} p (fromIntegral $ fromEnum h)
+        {#set cs_sparc->op_count#} p (fromIntegral $ length o)
+        if length o > 4
+           then error "operands overflew 4 elements"
+           else pokeArray (plusPtr p {#offsetof cs_sparc->operands#}) o
 
 {#enum sparc_reg as SparcReg {underscoreToCase} deriving (Show)#}
 {#enum sparc_insn as SparcInsn {underscoreToCase} deriving (Show)#}

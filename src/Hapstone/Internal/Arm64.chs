@@ -81,12 +81,12 @@ instance Storable CsArm64Op where
             t <- fromIntegral <$> {#get cs_arm64_op->type#} p :: IO Int
             let bP = plusPtr p -- FIXME: maybe alignment will bite us!
                    ({#offsetof cs_arm64_op.type#} + {#sizeof arm64_op_type#})
-            case toEnum t :: Arm64OpType of
+            case toEnum t of
               Arm64OpReg -> (Reg . fromIntegral) <$> (peek bP :: IO CUInt)
               Arm64OpImm -> (Imm . fromIntegral) <$> (peek bP :: IO Int64)
               Arm64OpCimm -> (CImm . fromIntegral) <$> (peek bP :: IO Int64)
               Arm64OpFp -> (Fp . realToFrac) <$> (peek bP :: IO CDouble)
-              Arm64OpMem -> Mem <$> (peek bP :: IO Arm64OpMemStruct)
+              Arm64OpMem -> Mem <$> peek bP
               Arm64OpRegMsr -> (Pstate . toEnum . fromIntegral) <$>
                  (peek bP :: IO CInt)
               Arm64OpSys -> (Sys . fromIntegral) <$> (peek bP :: IO CUInt)
