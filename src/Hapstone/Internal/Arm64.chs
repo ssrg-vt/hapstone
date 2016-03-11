@@ -78,7 +78,7 @@ instance Storable CsArm64Op where
             (fromIntegral <$> {#get cs_arm64_op->shift.value#} p))
         <*> ((toEnum . fromIntegral) <$> {#get cs_arm64_op->ext#} p)
         <*> do
-            t <- fromIntegral <$> {#get cs_arm64_op->type#} p :: IO Int
+            t <- fromIntegral <$> {#get cs_arm64_op->type#} p
             let bP = plusPtr p -- FIXME: maybe alignment will bite us!
                    ({#offsetof cs_arm64_op.type#} + {#sizeof arm64_op_type#})
             case toEnum t of

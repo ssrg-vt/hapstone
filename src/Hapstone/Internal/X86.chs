@@ -7,6 +7,8 @@ module Hapstone.Internal.X86 where
 
 {#context lib = "capstone"#}
 
+import Data.Maybe (fromMaybe)
+
 import Foreign
 import Foreign.C.Types
 
@@ -39,7 +41,64 @@ instance Storable X86OpMemStruct where
         {#set x86_op_mem->scale#} p (fromIntegral sc)
         {#set x86_op_mem->disp#} p (fromIntegral d)
 
--- TODO: port cs_x86_op struct
+data CsX86OpValue
+    = Reg X86Reg
+    | Imm Word64
+    | Fp Double
+    | Mem X86OpMemStruct
+    | Undefined
+
+data CsX86Op = CsX86Op
+    { value :: CsX86OpValue
+    , size :: Word8
+    , avxBcast :: Maybe X86AvxBcast
+    , avxZeroOpmask :: Bool
+    }
+
+instance Storable CsX86Op where
+    sizeOf _ = {#sizeof cs_x86_op#}
+    alignment _ = {#alignof cs_x86_op#}
+    peek p = CsX86Op
+        <$> do
+            t <- fromIntegral <$> {#get cs_x86_op->type#} p
+            let bP = plusPtr p -- FIXME: maybe alignment will bite us!
+                   ({#offsetof cs_x86_op.type#} + {#sizeof x86_op_type#})
+            case toEnum t of
+              X86OpReg -> (Reg . toEnum . fromIntegral) <$>
+                  (peek bP :: IO CInt)
+              X86OpImm -> Imm <$> peek bP
+              X86OpFp -> (Fp . realToFrac) <$> (peek bP :: IO CDouble)
+              X86OpMem -> Mem <$> peek bP
+              _ -> return Undefined
+        <*> (fromIntegral <$> {#get cs_x86_op->size#} p)
+        <*> do bc <- fromIntegral <$> ({#get cs_x86_op->avx_bcast#} p)
+               if bc == 0
+                  then return Nothing
+                  else return . Just $ toEnum bc
+        <*> ({#get cs_x86_op->avx_zero_opmask#} p)
+    poke p (CsX86Op val s ab az) = do
+        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
+               ({#offsetof cs_x86_op.type#} + {#sizeof x86_op_type#})
+            setType = {#set cs_x86_op->type#} p . fromIntegral . fromEnum
+        case val of
+          Reg r -> do
+              poke bP (fromIntegral $ fromEnum r :: CInt)
+              setType X86OpReg
+          Imm i -> do
+              poke bP i
+              setType X86OpImm
+          Fp f -> do
+              poke bP (realToFrac f :: CDouble)
+              setType X86OpFp
+          Mem m -> do
+              poke bP m
+              setType X86OpMem
+          Undefined -> setType X86OpInvalid
+        {#set cs_x86_op->size#} p (fromIntegral s)
+        {#set cs_x86_op->avx_bcast#} p
+            (fromIntegral . fromMaybe 0 $ fromEnum <$> ab :: CInt)
+        {#set cs_x86_op->avx_zero_opmask#} p az
+    
 -- TODO: port cs_x86 struct
 
 {#enum x86_insn as X86Insn {underscoreToCase} deriving (Show)#}
