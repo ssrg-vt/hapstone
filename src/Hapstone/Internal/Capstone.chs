@@ -16,11 +16,13 @@ import Control.Monad (join)
 
 import Foreign
 import Foreign.C.Types
-import Foreign.C.String (peekCString, withCString)
+import Foreign.C.String (CString, peekCString, withCString)
 import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr
 
 import Hapstone.Internal.Util
+
+import System.IO.Unsafe (unsafePerformIO)
 
 -- capstone's weird handle type
 type Csh = CSize
@@ -37,19 +39,20 @@ type Csh = CSize
 -- work modes
 {#enum cs_mode as CsMode {underscoreToCase} deriving (Show)#}
 
--- we will skip user defined dynamic memory routines for now
+-- TODO: we will skip user defined dynamic memory routines for now
 
 -- options are, interestingly, represented by different types
 {#enum cs_opt_type as CsOption {underscoreToCase} deriving (Show)#}
 {#enum cs_opt_value as CsOptionState {underscoreToCase} deriving (Show)#}
 
--- operands
+-- arch-uniting operand type
 {#enum cs_op_type as CsOperand {underscoreToCase} deriving (Show)#}
 
 -- instruction groups
 {#enum cs_group_type as CsGroup {underscoreToCase} deriving (Show)#}
 
--- what is this SKIPDATA business whose callback function we happily omitted?
+-- TODO: what is this SKIPDATA business whose callback function
+-- we happily omitted?
 
 -- instruction information
 data CsDetail = CsDetail
@@ -89,6 +92,7 @@ instance Storable CsDetail where
            else pokeArray (plusPtr p {#offsetof cs_detail.groups#}) g
         -- TODO: write arch info
 
+-- instructions
 data CsInsn = CsInsn
     { insnId :: Word32
     , address :: Word64
@@ -101,14 +105,15 @@ data CsInsn = CsInsn
 instance Storable CsInsn where
     sizeOf _ = {#sizeof cs_insn#}
     alignment _ = {#alignof cs_insn#}
-    peek p = CsInsn <$> (fromIntegral <$> {#get cs_insn->id#} p)
-                    <*> (fromIntegral <$> {#get cs_insn->address#} p)
-                    <*> do num <- fromIntegral <$> {#get cs_insn->size#} p
-                           let ptr = plusPtr p {#offsetof cs_insn->bytes#}
-                           peekArray num ptr
-                    <*> (peekCString =<< {#get cs_insn->mnemonic#} p)
-                    <*> (peekCString =<< {#get cs_insn->op_str#} p)
-                    <*> (castPtr <$> {#get cs_insn->detail#} p >>= peek)
+    peek p = CsInsn
+        <$> (fromIntegral <$> {#get cs_insn->id#} p)
+        <*> (fromIntegral <$> {#get cs_insn->address#} p)
+        <*> do num <- fromIntegral <$> {#get cs_insn->size#} p
+               let ptr = plusPtr p {#offsetof cs_insn->bytes#}
+               peekArray num ptr
+        <*> (peekCString =<< {#get cs_insn->mnemonic#} p)
+        <*> (peekCString =<< {#get cs_insn->op_str#} p)
+        <*> (castPtr <$> {#get cs_insn->detail#} p >>= peek)
     poke p (CsInsn i a b m o d) = do
         {#set cs_insn->id#} p (fromIntegral i)
         {#set cs_insn->address#} p (fromIntegral a)
@@ -125,33 +130,43 @@ instance Storable CsInsn where
         csDetailPtr <- castPtr <$> ({#get cs_insn->detail#} p)
         poke csDetailPtr d
 
--- TODO: we need to port the CS_INSN_OFFSET macro somehow I assume...
--- inlined C should be sufficient
+-- our own port of the CS_INSN_OFFSET macro
+csInsnOffset :: Ptr CsInsn -> Int -> Int
+csInsnOffset p n = unsafePerformIO $
+    (-) <$> getAddr (plusPtr p (n * {#sizeof cs_insn#})) <*> getAddr p
+    where getAddr p = fromIntegral <$> {#get cs_insn->address#} p
 
+-- possible error conditions
 {#enum cs_err as CsErr {underscoreToCase} deriving (Show)#}
 
+-- get the library version
 {#fun pure cs_version as ^
     {alloca- `Int' peekNum*, alloca- `Int' peekNum*} -> `Int'#}
 
+-- get information on supported features
 foreign import ccall "capstone/capstone.h cs_support"
     csSupport' :: CInt -> Bool
-
 csSupport :: Enum a => a -> Bool
 csSupport = csSupport' . fromIntegral . fromEnum
 
--- TODO: maybe make this pure and make it Csh with some marshalling everywhere?
+-- open a new disassembly handle
 {#fun cs_open as ^
-    {`CsArch', `CsMode', alloca- `Csh' peek*} -> `CsErr'#}
+    {`CsArch', combine `[CsMode]', alloca- `Csh' peek*} -> `CsErr'#}
 
+-- close a handle obtained by cs_open/csOpen
 {#fun cs_close as ^ {id `Ptr Csh'} -> `CsErr'#}
 
+-- set an option on a handle
 {#fun cs_option as ^ `Enum a' =>
     {`Csh', `CsOption', getCULongFromEnum `a'} -> `CsErr'#}
 
+-- get the last error from a handle
 {#fun cs_errno as ^ {`Csh'} -> `CsErr'#}
 
+-- get the description of an error
 {#fun cs_strerror as ^ {`CsErr'} -> `String'#}
 
+-- disassemble a buffer
 foreign import ccall "capstone/capstone.h cs_disasm"
     csDisasm' :: Csh -- handle
               -> Ptr CUChar -> CSize -- buffer to disassemble
@@ -173,16 +188,29 @@ csDisasm handle bytes addr num = do
     csFree resPtr resNum
     return res
 
+-- free an instruction struct
 {#fun cs_free as ^ {castPtr `Ptr CsInsn', `Int'} -> `()'#}
+
+-- allocate space for an instruction struct
 {#fun cs_malloc as ^ {`Csh'} -> `Ptr CsInsn' castPtr#}
+
 -- TODO: decide whether we want cs_disasm_iter
 
--- TODO: change these types to the appropriate enum types
-{#fun pure cs_reg_name as ^ {`Csh', `Int'} -> `String'#}
-{#fun pure cs_insn_name as ^ {`Csh', `Int'} -> `String'#}
-{#fun pure cs_group_name as ^ {`Csh', `Int'} -> `String'#}
+-- get a register's name as a String
+{#fun pure cs_reg_name as csRegName' {`Csh', `Int'} -> `CString'#}
+csRegName :: Enum e => Csh -> e -> Maybe String
+csRegName h = stringLookup . csRegName' h . fromEnum
 
--- TODO: use maybe types where applicable (in a higher-level API)
+-- get a instruction's name as a String
+{#fun pure cs_insn_name as csInsnName' {`Csh', `Int'} -> `CString'#}
+csInsnName :: Enum e => Csh -> e -> Maybe String
+csInsnName h = stringLookup . csInsnName' h . fromEnum
+
+-- get a instruction group's name as a String
+{#fun pure cs_group_name as csGroupName' {`Csh', `Int'} -> `CString'#}
+csGroupName :: Enum e => Csh -> e -> Maybe String
+csGroupName h = stringLookup . csGroupName' h . fromEnum
+
 -- and change these types to the appropriate enum types
 -- TODO fix with ghci :/
 {-{#fun pure cs_insn_group as ^

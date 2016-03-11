@@ -7,6 +7,7 @@ module Hapstone.Internal.X86 where
 
 {#context lib = "capstone"#}
 
+import Data.List (dropWhileEnd)
 import Data.Maybe (fromMaybe)
 
 import Foreign
@@ -98,8 +99,78 @@ instance Storable CsX86Op where
         {#set cs_x86_op->avx_bcast#} p
             (fromIntegral . fromMaybe 0 $ fromEnum <$> ab :: CInt)
         {#set cs_x86_op->avx_zero_opmask#} p az
-    
--- TODO: port cs_x86 struct
+
+data CsX86 = CsX86
+    { prefix :: (Maybe Word8, Maybe Word8, Maybe Word8, Maybe Word8)
+    , opcode :: [Word8]
+    , rex :: Word8
+    , addrSize :: Word8
+    , modRM :: Word8
+    , sib :: Maybe Word8
+    , disp :: Maybe Int32
+    , sibIndex :: X86Reg
+    , sibScale :: Int8
+    , sibBase :: X86Reg
+    , sseCc :: X86SseCc
+    , avxCc :: X86AvxCc
+    , avxSae :: Bool
+    , avxRm :: X86AvxRm
+    , operands :: [CsX86Op]
+    }
+
+fromZero :: (Eq a, Num a) => a -> Maybe a
+fromZero 0 = Nothing
+fromZero v = Just v
+
+instance Storable CsX86 where
+    sizeOf _ = {#sizeof cs_x86#}
+    alignment _ = {#alignof cs_x86#}
+    peek p = CsX86
+        <$> do let bP = plusPtr p {#offsetof cs_x86->prefix#}
+               [p0, p1, p2, p3] <- peekArray 4 bP
+               return (fromZero p0, fromZero p1, fromZero p2, fromZero p3)
+        <*> (dropWhileEnd (== 0) <$>
+            peekArray 4 (plusPtr p {#offsetof cs_x86->opcode#}))
+        <*> (fromIntegral <$> {#get cs_x86->rex#} p)
+        <*> (fromIntegral <$> {#get cs_x86->addr_size#} p)
+        <*> (fromIntegral <$> {#get cs_x86->modrm#} p)
+        <*> ((fromZero . fromIntegral) <$> {#get cs_x86->sib#} p)
+        <*> ((fromZero . fromIntegral) <$> {#get cs_x86->disp#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get cs_x86->sib_index#} p)
+        <*> (fromIntegral <$> {#get cs_x86->sib_scale#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get cs_x86->sib_base#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get cs_x86->sse_cc#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get cs_x86->avx_cc#} p)
+        <*> {#get cs_x86->avx_sae#} p
+        <*> ((toEnum . fromIntegral) <$> {#get cs_x86->avx_rm#} p)
+        <*> do num <- fromIntegral <$> {#get cs_x86->op_count#} p
+               let ptr = plusPtr p {#offsetof cs_x86.operands#}
+               peekArray num ptr
+    poke p (CsX86 (p0, p1, p2, p3) op r a m s d sI sS sB sC aC aS aR o) = do
+        let p' = [ fromMaybe 0 p0
+                 , fromMaybe 0 p1
+                 , fromMaybe 0 p2
+                 , fromMaybe 0 p3
+                 ]
+            op' = op ++ replicate (4 - length op) 0
+        pokeArray (plusPtr p {#offsetof cs_x86->prefix#}) p'
+        pokeArray (plusPtr p {#offsetof cs_x86->opcode#}) op'
+        {#set cs_x86->rex#} p (fromIntegral r)
+        {#set cs_x86->addr_size#} p (fromIntegral a)
+        {#set cs_x86->modrm#} p (fromIntegral m)
+        {#set cs_x86->sib#} p (fromIntegral $ fromMaybe 0 s)
+        {#set cs_x86->disp#} p (fromIntegral $ fromMaybe 0 d)
+        {#set cs_x86->sib_index#} p (fromIntegral $ fromEnum sI)
+        {#set cs_x86->sib_scale#} p (fromIntegral sS)
+        {#set cs_x86->sib_base#} p (fromIntegral $ fromEnum sB)
+        {#set cs_x86->sse_cc#} p (fromIntegral $ fromEnum sC)
+        {#set cs_x86->avx_cc#} p (fromIntegral $ fromEnum aC)
+        {#set cs_x86->avx_sae#} p aS
+        {#set cs_x86->avx_rm#} p (fromIntegral $ fromEnum aR)
+        {#set cs_x86->op_count#} p (fromIntegral $ length o)
+        if length o > 8
+           then error "operands overflew 8 elements"
+           else pokeArray (plusPtr p {#offsetof cs_x86->operands#}) o
 
 {#enum x86_insn as X86Insn {underscoreToCase} deriving (Show)#}
 {#enum x86_insn_group as X86InsnGroup {underscoreToCase} deriving (Show)#}

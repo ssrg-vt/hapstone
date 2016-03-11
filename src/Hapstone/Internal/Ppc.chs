@@ -15,7 +15,6 @@ import Foreign.C.Types
 
 {#enum ppc_op_type as PpcOpType {underscoreToCase} deriving (Show)#}
 
--- TODO: high level types
 data PpcOpMemStruct = PpcOpMemStruct PpcReg Int32
 
 instance Storable PpcOpMemStruct where

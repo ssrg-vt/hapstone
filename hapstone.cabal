@@ -28,7 +28,6 @@ library
   default-language:    Haskell2010
   extra-libraries:     capstone
   build-tools:         c2hs
-  --includes:            capstone/capstone.h
 
 test-suite hapstone-test
   type:                exitcode-stdio-1.0
