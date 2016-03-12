@@ -10,7 +10,7 @@ import Foreign.C.Types
 
 {#enum xcore_op_type as XCoreOpType {underscoreToCase} deriving (Show)#}
 
-data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32
+data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32 deriving Show
 
 instance Storable XCoreOpMemStruct where
     sizeOf _ = {#sizeof xcore_op_mem#}
@@ -31,6 +31,7 @@ data CsXCoreOp
     | Imm Int32
     | Mem XCoreOpMemStruct
     | Undefined
+    deriving Show
 
 instance Storable CsXCoreOp where
     sizeOf _ = {#sizeof cs_xcore_op#}
@@ -54,7 +55,7 @@ instance Storable CsXCoreOp where
           Mem m -> poke bP m >> setType XcoreOpMem
           _ -> setType XcoreOpInvalid
 
-newtype CsXCore = CsXCore [CsXCoreOp]
+newtype CsXCore = CsXCore [CsXCoreOp] deriving Show
 
 instance Storable CsXCore where
     sizeOf _ = {#sizeof cs_xcore#}

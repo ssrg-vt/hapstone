@@ -12,7 +12,7 @@ import Foreign.C.Types
 
 {#enum sysz_op_type as SysZOpType {underscoreToCase} deriving (Show)#}
 
-data SysZOpMemStruct = SysZOpMemStruct Word8 Word8 Word64 Int64
+data SysZOpMemStruct = SysZOpMemStruct Word8 Word8 Word64 Int64 deriving Show
 
 instance Storable SysZOpMemStruct where
     sizeOf _ = {#sizeof sysz_op_mem#}
@@ -34,6 +34,7 @@ data CsSysZOp
     | Mem SysZOpMemStruct
     | AcReg
     | Undefined
+    deriving Show
 
 instance Storable CsSysZOp where
     sizeOf _ = {#sizeof cs_sysz_op#}
@@ -68,7 +69,7 @@ instance Storable CsSysZOp where
 data CsSysZ = CsSysZ
     { cc :: SysZCc
     , operands :: [CsSysZOp]
-    }
+    } deriving Show
 
 instance Storable CsSysZ where
     sizeOf _ = {#sizeof cs_sysz#}

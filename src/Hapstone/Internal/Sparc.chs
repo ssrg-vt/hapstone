@@ -13,7 +13,7 @@ import Foreign.C.Types
 
 {#enum sparc_op_type as SparcOpType {underscoreToCase} deriving (Show)#}
 
-data SparcOpMemStruct = SparcOpMemStruct Word8 Word8 Int32
+data SparcOpMemStruct = SparcOpMemStruct Word8 Word8 Int32 deriving Show
 
 instance Storable SparcOpMemStruct where
     sizeOf _ = {#sizeof sparc_op_mem#}
@@ -32,6 +32,7 @@ data CsSparcOp
     | Imm Int32
     | Mem SparcOpMemStruct
     | Undefined
+    deriving Show
 
 instance Storable CsSparcOp where
     sizeOf _ = {#sizeof cs_sparc_op#}
@@ -65,7 +66,7 @@ data CsSparc = CsSparc
     { cc :: SparcCc
     , hint :: SparcHint
     , operands :: [CsSparcOp]
-    }
+    } deriving Show
 
 instance Storable CsSparc where
     sizeOf _ = {#sizeof cs_sparc#}

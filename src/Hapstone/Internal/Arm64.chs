@@ -31,7 +31,7 @@ import Foreign.C.Types
 {#enum arm64_prefetch_op as Arm64PrefetchOp
     {underscoreToCase} deriving (Show)#}
 
-data Arm64OpMemStruct = Arm64OpMemStruct Word32 Word32 Int32
+data Arm64OpMemStruct = Arm64OpMemStruct Word32 Word32 Int32 deriving Show
 
 instance Storable Arm64OpMemStruct where
     sizeOf _ = {#sizeof arm64_op_mem#}
@@ -56,6 +56,7 @@ data CsArm64OpValue
     | Prefetch Arm64PrefetchOp
     | Barrier Arm64BarrierOp
     | Undefined
+    deriving Show
 
 data CsArm64Op = CsArm64Op
     { vectorIndex :: Int32
@@ -64,7 +65,7 @@ data CsArm64Op = CsArm64Op
     , shift :: (Arm64Shifter, Word32)
     , ext :: Arm64Extender
     , value :: CsArm64OpValue
-    }
+    } deriving Show
 
 instance Storable CsArm64Op where
     sizeOf _ = {#sizeof cs_arm64_op#}
@@ -140,7 +141,7 @@ data CsArm64 = CsArm64
     , updateFlags :: Bool
     , writeback :: Bool
     , operands :: [CsArm64Op]
-    }
+    } deriving Show
 
 instance Storable CsArm64 where
     sizeOf _ = {#sizeof cs_arm64#}

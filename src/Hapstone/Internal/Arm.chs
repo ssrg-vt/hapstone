@@ -21,7 +21,7 @@ import Foreign.C.Types
 {#enum arm_vectordata_type as
     ArmVectordataType {underscoreToCase} deriving (Show)#}
 
-data ArmOpMemStruct = ArmOpMemStruct Word32 Word32 Int32 Int32
+data ArmOpMemStruct = ArmOpMemStruct Word32 Word32 Int32 Int32 deriving Show
 
 instance Storable ArmOpMemStruct where
     sizeOf _ = {#sizeof arm_op_mem#}
@@ -47,13 +47,14 @@ data CsArmOpValue
     | Mem ArmOpMemStruct
     | Setend ArmSetendType
     | Undefined
+    deriving Show
 
 data CsArmOp = CsArmOp
     { vectorIndex :: Int32
     , shift :: (ArmShifter, Word32)
     , value :: CsArmOpValue
     , subtracted :: Bool
-    }
+    } deriving Show
 
 instance Storable CsArmOp where
     sizeOf _ = {#sizeof cs_arm_op#}
@@ -125,7 +126,7 @@ data CsArm = CsArm
     , writeback :: Bool
     , memBarrier :: ArmMemBarrier
     , operands :: [CsArmOp]
-    }
+    } deriving Show
 
 instance Storable CsArm where
     sizeOf _ = {#sizeof cs_arm#}

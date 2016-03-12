@@ -25,6 +25,7 @@ import Foreign.C.Types
 {#enum x86_prefix as X86Prefix {underscoreToCase} deriving (Show)#}
 
 data X86OpMemStruct = X86OpMemStruct Word32 Word32 Word32 Int32 Int64
+    deriving Show
 
 instance Storable X86OpMemStruct where
     sizeOf _ = {#sizeof x86_op_mem#}
@@ -48,13 +49,14 @@ data CsX86OpValue
     | Fp Double
     | Mem X86OpMemStruct
     | Undefined
+    deriving Show
 
 data CsX86Op = CsX86Op
     { value :: CsX86OpValue
     , size :: Word8
     , avxBcast :: Maybe X86AvxBcast
     , avxZeroOpmask :: Bool
-    }
+    } deriving Show
 
 instance Storable CsX86Op where
     sizeOf _ = {#sizeof cs_x86_op#}
@@ -116,7 +118,7 @@ data CsX86 = CsX86
     , avxSae :: Bool
     , avxRm :: X86AvxRm
     , operands :: [CsX86Op]
-    }
+    } deriving Show
 
 fromZero :: (Eq a, Num a) => a -> Maybe a
 fromZero 0 = Nothing

@@ -15,7 +15,7 @@ import Foreign.C.Types
 
 {#enum ppc_op_type as PpcOpType {underscoreToCase} deriving (Show)#}
 
-data PpcOpMemStruct = PpcOpMemStruct PpcReg Int32
+data PpcOpMemStruct = PpcOpMemStruct PpcReg Int32 deriving Show
 
 instance Storable PpcOpMemStruct where
     sizeOf _ = {#sizeof ppc_op_mem#}
@@ -27,7 +27,7 @@ instance Storable PpcOpMemStruct where
         {#set ppc_op_mem->base#} p (fromIntegral $ fromEnum b)
         {#set ppc_op_mem->disp#} p (fromIntegral d)
 
-data PpcOpCrxStruct = PpcOpCrxStruct Word32 PpcReg PpcBc
+data PpcOpCrxStruct = PpcOpCrxStruct Word32 PpcReg PpcBc deriving Show
 
 instance Storable PpcOpCrxStruct where
     sizeOf _ = {#sizeof ppc_op_crx#}
@@ -47,6 +47,7 @@ data CsPpcOp
     | Mem PpcOpMemStruct
     | Crx PpcOpCrxStruct
     | Undefined
+    deriving Show
 
 instance Storable CsPpcOp where
     sizeOf _ = {#sizeof cs_ppc_op#}
@@ -85,7 +86,7 @@ data CsPpc = CsPpc
     , bh :: PpcBh
     , updateCr0 :: Bool
     , operands :: [CsPpcOp]
-    }
+    } deriving Show
 
 instance Storable CsPpc where
     sizeOf _ = {#sizeof cs_ppc#}

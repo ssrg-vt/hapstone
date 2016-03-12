@@ -10,7 +10,7 @@ import Foreign.C.Types
 
 {#enum mips_op_type as MipsOpType {underscoreToCase} deriving (Show)#}
 
-data MipsOpMemStruct = MipsOpMemStruct Word32 Int64
+data MipsOpMemStruct = MipsOpMemStruct Word32 Int64 deriving Show
 
 instance Storable MipsOpMemStruct where
     sizeOf _ = {#sizeof mips_op_mem#}
@@ -27,6 +27,7 @@ data CsMipsOp
     | Imm Int64
     | Mem MipsOpMemStruct
     | Undefined
+    deriving Show
 
 instance Storable CsMipsOp where
     sizeOf _ = {#sizeof cs_mips_op#}
@@ -56,7 +57,7 @@ instance Storable CsMipsOp where
               setType MipsOpMem
           _ -> setType MipsOpInvalid
 
-newtype CsMips = CsMips [CsMipsOp]
+newtype CsMips = CsMips [CsMipsOp] deriving Show
 
 instance Storable CsMips where
     sizeOf _ = {#sizeof cs_mips#}

@@ -21,6 +21,14 @@ import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr
 
 import Hapstone.Internal.Util
+import qualified Hapstone.Internal.Arm64 as Arm64
+import qualified Hapstone.Internal.Arm as Arm
+import qualified Hapstone.Internal.Mips as Mips
+import qualified Hapstone.Internal.Ppc as Ppc
+import qualified Hapstone.Internal.Sparc as Sparc
+import qualified Hapstone.Internal.SystemZ as SystemZ
+import qualified Hapstone.Internal.X86 as X86
+import qualified Hapstone.Internal.XCore as XCore
 
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -54,30 +62,45 @@ type Csh = CSize
 -- TODO: what is this SKIPDATA business whose callback function
 -- we happily omitted?
 
+data ArchInfo
+    = X86 X86.CsX86
+    | Arm64 Arm64.CsArm64
+    | Arm Arm.CsArm
+    | Mips Mips.CsMips
+    | Ppc Ppc.CsPpc
+    | Sparc Sparc.CsSparc
+    | SysZ SystemZ.CsSysZ
+    | XCore XCore.CsXCore
+    deriving Show
+
 -- instruction information
 data CsDetail = CsDetail
     { regsRead :: [Word8]
     , regsWrite :: [Word8]
     , groups :: [Word8]
-    , archInfo :: () -- TODO: implement
+    , archInfo :: Maybe ArchInfo
     } deriving Show
 
+-- the union holding architecture-specific info is not tagged. Thus, we have
+-- no way to determine what kind of data is stored in it without resorting to
+-- some kind of context lookup, as the C code would do. Thus, the
+-- peek-inmplementation does not get architecture information, use peekDetail
+-- for that.
 instance Storable CsDetail where
     sizeOf _ = {#sizeof cs_detail#}
     alignment _ = {#alignof cs_detail#}
     peek p = CsDetail
         <$> do num <- fromIntegral <$> {#get cs_detail->regs_read_count#} p
-               let ptr = plusPtr p {#offsetof cs_detail->regs_read#}
+               let ptr = plusPtr p {#offsetof cs_detail.regs_read#}
                peekArray num ptr
         <*> do num <- fromIntegral <$> {#get cs_detail->regs_write_count#} p
-               let ptr = plusPtr p {#offsetof cs_detail->regs_write#}
+               let ptr = plusPtr p {#offsetof cs_detail.regs_write#}
                peekArray num ptr
         <*> do num <- fromIntegral <$> {#get cs_detail->groups_count#} p
-               let ptr = plusPtr p {#offsetof cs_detail->groups#}
+               let ptr = plusPtr p {#offsetof cs_detail.groups#}
                peekArray num ptr
-        <*> pure ()
-        -- TODO: read arch info
-    poke p (CsDetail rR rW g _) = do
+        <*> pure Nothing
+    poke p (CsDetail rR rW g a) = do
         {#set cs_detail->regs_read_count#} p (fromIntegral $ length rR)
         if length rR > 12
            then error "regs_read overflew 12 bytes"
@@ -90,7 +113,33 @@ instance Storable CsDetail where
         if length g > 8
            then error "groups overflew 8 bytes"
            else pokeArray (plusPtr p {#offsetof cs_detail.groups#}) g
-        -- TODO: write arch info
+        let bP = plusPtr p ({#offsetof cs_detail.groups_count#} + 1)
+        case a of
+          Just (X86 x) -> poke bP x
+          Just (Arm64 x) -> poke bP x
+          Just (Arm x) -> poke bP x
+          Just (Mips x) -> poke bP x
+          Just (Ppc x) -> poke bP x
+          Just (Sparc x) -> poke bP x
+          Just (SysZ x) -> poke bP x
+          Just (XCore x) -> poke bP x
+          Nothing -> return ()
+
+-- an arch-sensitive peek for cs_detail
+peekDetail :: CsArch -> Ptr CsDetail -> IO CsDetail
+peekDetail arch p = do
+    detail <- peek p
+    let bP = plusPtr p ({#offsetof cs_detail.groups_count#} + 1)
+    aI <- case arch of
+            CsArchX86 -> X86 <$> peek (castPtr p)
+            CsArchArm64 -> Arm64 <$> peek (castPtr p)
+            CsArchArm -> Arm <$> peek (castPtr p)
+            CsArchMips -> Mips <$> peek (castPtr p)
+            CsArchPpc -> Ppc <$> peek (castPtr p)
+            CsArchSparc -> Sparc <$> peek (castPtr p)
+            CsArchSysz -> SysZ <$> peek (castPtr p)
+            CsArchXcore -> XCore <$> peek (castPtr p)
+    return detail { archInfo = Just aI }
 
 -- instructions
 data CsInsn = CsInsn
@@ -102,6 +151,7 @@ data CsInsn = CsInsn
     , detail :: CsDetail
     } deriving Show
 
+-- The untagged-union-problem propagates here as well
 instance Storable CsInsn where
     sizeOf _ = {#sizeof cs_insn#}
     alignment _ = {#alignof cs_insn#}
