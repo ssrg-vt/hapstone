@@ -1,8 +1,8 @@
 name:                hapstone
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            Capstone bindings for Haskell
 description:         Please see README.md
-homepage:            http://github.com/githubuser/hapstone#readme
+homepage:            http://github.com/ibabushkin/hapstone
 license:             BSD3
 license-file:        LICENSE
 author:              Inokentiy Babushkin
@@ -10,7 +10,6 @@ maintainer:          inokentiy.babushkin@googlemail.com
 copyright:           2016 Inokentiy Babushkin
 category:            None
 build-type:          Simple
--- extra-source-files:
 cabal-version:       >=1.10
 
 library
@@ -40,4 +39,4 @@ test-suite hapstone-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/hapstone
+  location: https://github.com/ibabushkin/hapstone
