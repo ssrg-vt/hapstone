@@ -1,4 +1,4 @@
-module ArmSpec where
+module Internal.Arm.StorableSpec where
 
 import Foreign
 import Foreign.C.Types
@@ -8,7 +8,7 @@ import Test.QuickCheck
 
 import Hapstone.Internal.Arm
 
-import ArmDefault
+import Internal.Arm.Default
 
 -- | main spec
 spec :: Spec
@@ -25,7 +25,7 @@ armOpMemStructSpec = describe "Storable ArmOpMemStruct" $ do
             sizeOf (0 :: CUInt) * 2 + sizeOf (0 :: Word32) * 2
     it "has matching peek- and poke-implementations" $ property $
         \s@ArmOpMemStruct{} ->
-            (alloca $ \p -> (poke p s >> peek p)) `shouldReturn` s
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ pendingWith "use a binary string generated"
 
 -- | CsArmOp spec
@@ -35,7 +35,7 @@ csArmOpSpec = describe "Storable CsArmOp" $ do
         sizeOf (undefined :: CsArmOp) == 4*4 + 16 + 1 + 7
     it "has matching peek- and poke-implementations" $ property $
         \s@CsArmOp{} ->
-            (alloca $ \p -> (poke p s >> peek p)) `shouldReturn` s
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ pendingWith "use a binary string generated"
 
 -- | CsArm spec
@@ -43,8 +43,8 @@ csArmSpec :: Spec
 csArmSpec = describe "Storable CsArm" $ do
     it "has a memory-layout we can handle" $
         sizeOf (undefined :: CsArm) ==
-            1 + 3 + 5*4 + 2*1 + 2 + 4 + 1 + 7 + 36*40
+            1 + 3 + 5*4 + 2 + 2 + 4 + 1 + 7 + 36*40
     it "has matching peek- and poke-implementations" $ property $
         \s@CsArm{} ->
-            (alloca $ \p -> (poke p s >> peek p)) `shouldReturn` s
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ pendingWith "use a binary string generated"

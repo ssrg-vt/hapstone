@@ -8,28 +8,21 @@
 #include <stdio.h>
 
 #include <capstone/arm64.h>
-//#include <capstone/arm.h>
 
 // print all struct sizes
 void print_sizes(void){
     puts("arm64.h");
-    printf("[*] arm64_op_mem: %d\n", sizeof(arm64_op_mem)); // 12
-    printf("[*] cs_arm64_op: %d\n", sizeof(cs_arm64_op)); // 48 vs. 28
-    printf("[*] cs_arm64: %d\n", sizeof(cs_arm64)); // 392 vs. 232 
-
-    /*
-    puts("arm.h");
-    printf("[*] arm_op_mem: %d\n", sizeof(arm_op_mem));
-    printf("[*] cs_arm_op: %d\n", sizeof(cs_arm_op));
-    printf("[*] cs_arm: %d\n", sizeof(cs_arm));
-    */
+    printf("[*] arm64_op_mem: %d\n", sizeof(arm64_op_mem));
+    printf("[*] cs_arm64_op: %d\n", sizeof(cs_arm64_op));
+    printf("[*] cs_arm64: %d\n", sizeof(cs_arm64));
 }
 
+// print all offsets and member sizes
 void print_alignment(void){
     cs_arm64_op test = {0, 1, 2, {3, 4}, 5, 6, 7};
     void *base = &test;
 
-    printf("cs_arm64_op: %d\n", sizeof(cs_arm64_op)); // 48 vs. 28
+    printf("cs_arm64_op: %d\n", sizeof(cs_arm64_op));
     puts("cs_arm64_op\toffset\tsize");
     printf("vector_index:\t%d\t%d\n", (void *)&test.vector_index - base,
             sizeof(int));

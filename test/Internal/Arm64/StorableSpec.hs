@@ -1,4 +1,4 @@
-module Arm64Spec where
+module Internal.Arm64.StorableSpec where
 
 import Foreign
 import Foreign.C.Types
@@ -8,7 +8,7 @@ import Test.QuickCheck
 
 import Hapstone.Internal.Arm64
 
-import Arm64Default
+import Internal.Arm64.Default
 
 -- | main spec
 spec :: Spec
@@ -24,8 +24,8 @@ arm64OpMemStructSpec = describe "Storable Arm64OpMemStruct" $ do
         sizeOf (undefined :: Arm64OpMemStruct) ==
             sizeOf (0 :: CUInt) * 2 + sizeOf (0 :: Word32)
     it "has matching peek- and poke-implementations" $ property $
-        \s@(Arm64OpMemStruct _ _ _) ->
-            (alloca $ \p -> (poke p s >> peek p)) `shouldReturn` s
+        \s@Arm64OpMemStruct{} ->
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ pendingWith "use a binary string generated"
 
 csArm64OpSpec :: Spec
@@ -34,14 +34,14 @@ csArm64OpSpec = describe "Storable CsArm64Op" $ do
         sizeOf (undefined :: CsArm64Op) == 7*4 + 4 + 12 + 4
     it "has matching peek- and poke-implementations" $ property $
         \s@CsArm64Op{} ->
-            (alloca $ \p -> (poke p s >> peek p)) `shouldReturn` s
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ pendingWith "use a binary string generated"
 
 csArm64Spec :: Spec
 csArm64Spec = describe "Storable CsArm64" $ do
     it "has a memory-layout we can handle" $
-        sizeOf (undefined :: CsArm64) == 4 + 3*1 + 1 + 8*48
+        sizeOf (undefined :: CsArm64) == 4 + 3 + 1 + 8*48
     it "has matching peek- and poke-implementations" $ property $
         \s@CsArm64{} ->
-            (alloca $ \p -> (poke p s >> peek p)) `shouldReturn` s
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ pendingWith "use a binary string generated"

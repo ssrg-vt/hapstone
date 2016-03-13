@@ -1,4 +1,4 @@
-module Arm64Default where
+module Internal.Arm64.Default where
 
 import Foreign
 import Foreign.C.Types
