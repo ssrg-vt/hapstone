@@ -10,28 +10,43 @@ import Control.Monad (join)
 import Foreign
 import Foreign.C.Types
 
-{#enum arm64_shifter as Arm64Shifter {underscoreToCase} deriving (Show)#}
-{#enum arm64_extender as Arm64Extender {underscoreToCase} deriving (Show)#}
-{#enum arm64_cc as Arm64ConditionCode {underscoreToCase} deriving (Show)#}
+{#enum arm64_shifter as Arm64Shifter {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_extender as Arm64Extender {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_cc as Arm64ConditionCode {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum arm64_sysreg as Arm64Sysreg {underscoreToCase} deriving (Show)#}
-{#enum arm64_msr_reg as Arm64MsrReg {underscoreToCase} deriving (Show)#}
+{#enum arm64_sysreg as Arm64Sysreg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_msr_reg as Arm64MsrReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum arm64_pstate as Arm64Pstate {underscoreToCase} deriving (Show)#}
+{#enum arm64_pstate as Arm64Pstate {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum arm64_vas as Arm64Vas {underscoreToCase} deriving (Show)#}
-{#enum arm64_vess as Arm64Vess {underscoreToCase} deriving (Show)#}
+{#enum arm64_vas as Arm64Vas {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_vess as Arm64Vess {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum arm64_barrier_op as Arm64BarrierOp {underscoreToCase} deriving (Show)#}
-{#enum arm64_op_type as Arm64OpType {underscoreToCase} deriving (Show)#}
-{#enum arm64_tlbi_op as Arm64TlbiOp {underscoreToCase} deriving (Show)#}
-{#enum arm64_at_op as Arm64AtOp {underscoreToCase} deriving (Show)#}
-{#enum arm64_dc_op as Arm64DcOp {underscoreToCase} deriving (Show)#}
-{#enum arm64_ic_op as Arm64IcOp {underscoreToCase} deriving (Show)#}
-{#enum arm64_prefetch_op as Arm64PrefetchOp
-    {underscoreToCase} deriving (Show)#}
+{#enum arm64_barrier_op as Arm64BarrierOp {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_op_type as Arm64OpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_tlbi_op as Arm64TlbiOp {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_at_op as Arm64AtOp {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_dc_op as Arm64DcOp {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_ic_op as Arm64IcOp {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_prefetch_op as Arm64PrefetchOp {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-data Arm64OpMemStruct = Arm64OpMemStruct Word32 Word32 Int32 deriving Show
+data Arm64OpMemStruct = Arm64OpMemStruct Word32 Word32 Int32
+    deriving (Show, Eq)
 
 instance Storable Arm64OpMemStruct where
     sizeOf _ = {#sizeof arm64_op_mem#}
@@ -56,7 +71,7 @@ data CsArm64OpValue
     | Prefetch Arm64PrefetchOp
     | Barrier Arm64BarrierOp
     | Undefined
-    deriving Show
+    deriving (Show, Eq)
 
 data CsArm64Op = CsArm64Op
     { vectorIndex :: Int32
@@ -65,11 +80,11 @@ data CsArm64Op = CsArm64Op
     , shift :: (Arm64Shifter, Word32)
     , ext :: Arm64Extender
     , value :: CsArm64OpValue
-    } deriving Show
+    } deriving (Show, Eq)
 
 instance Storable CsArm64Op where
-    sizeOf _ = {#sizeof cs_arm64_op#}
-    alignment _ = {#alignof cs_arm64_op#}
+    sizeOf _ = 48
+    alignment _ = 8
     peek p = CsArm64Op
         <$> (fromIntegral <$> {#get cs_arm64_op->vector_index#} p)
         <*> ((toEnum . fromIntegral) <$> {#get cs_arm64_op->vas#} p)
@@ -80,8 +95,7 @@ instance Storable CsArm64Op where
         <*> ((toEnum . fromIntegral) <$> {#get cs_arm64_op->ext#} p)
         <*> do
             t <- fromIntegral <$> {#get cs_arm64_op->type#} p
-            let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-                   ({#offsetof cs_arm64_op.type#} + {#sizeof arm64_op_type#})
+            let bP = plusPtr p 32
             case toEnum t of
               Arm64OpReg -> (Reg . fromIntegral) <$> (peek bP :: IO CUInt)
               Arm64OpImm -> (Imm . fromIntegral) <$> (peek bP :: IO Int64)
@@ -103,8 +117,7 @@ instance Storable CsArm64Op where
         {#set cs_arm64_op->shift.type#} p (fromIntegral $ fromEnum sh)
         {#set cs_arm64_op->shift.value#} p (fromIntegral shV)
         {#set cs_arm64_op->ext#} p (fromIntegral $ fromEnum ext)
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_arm64_op.type#} + {#sizeof arm64_op_type#})
+        let bP = plusPtr p 32
             setType = {#set cs_arm64_op->type#} p . fromIntegral . fromEnum
         case val of
           Reg r -> do
@@ -141,27 +154,30 @@ data CsArm64 = CsArm64
     , updateFlags :: Bool
     , writeback :: Bool
     , operands :: [CsArm64Op]
-    } deriving Show
+    } deriving (Show, Eq)
 
 instance Storable CsArm64 where
-    sizeOf _ = {#sizeof cs_arm64#}
-    alignment _ = {#alignof cs_arm64#}
+    sizeOf _ = 392
+    alignment _ = 12
     peek p = CsArm64
         <$> (toEnum . fromIntegral <$> {#get cs_arm64->cc#} p)
-        <*> ({#get cs_arm64->update_flags#} p)
-        <*> ({#get cs_arm64->writeback#} p)
+        <*> (toBool <$> (peekByteOff p 4 :: IO Word8)) -- update_flags
+        <*> (toBool <$> (peekByteOff p 5 :: IO Word8)) -- writeback
         <*> do num <- fromIntegral <$> {#get cs_arm64->op_count#} p
                let ptr = plusPtr p {#offsetof cs_arm64.operands#}
                peekArray num ptr
     poke p (CsArm64 cc uF w o) = do
         {#set cs_arm64->cc#} p (fromIntegral $ fromEnum cc)
-        {#set cs_arm64->update_flags#} p uF
-        {#set cs_arm64->writeback#} p w
+        pokeByteOff p 4 (fromBool uF :: Word8) -- update_flags
+        pokeByteOff p 5 (fromBool w :: Word8) -- writeback
         {#set cs_arm64->op_count#} p (fromIntegral $ length o)
         if length o > 8
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_arm64->operands#}) o
 
-{#enum arm64_reg as Arm64Reg {underscoreToCase} deriving (Show)#}
-{#enum arm64_insn as Arm64Insn {underscoreToCase} deriving (Show)#}
-{#enum arm64_insn_group as Arm64InsnGroup {underscoreToCase} deriving (Show)#}
+{#enum arm64_reg as Arm64Reg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_insn as Arm64Insn {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum arm64_insn_group as Arm64InsnGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
