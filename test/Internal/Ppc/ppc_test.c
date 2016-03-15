@@ -13,6 +13,7 @@
 void print_sizes(void){
     puts("ppc.h");
     printf("[*] ppc_op_mem: %d\n", sizeof(ppc_op_mem));
+    printf("[*] ppc_op_crx: %d\n", sizeof(ppc_op_crx));
     printf("[*] cs_ppc_op: %d\n", sizeof(cs_ppc_op));
     printf("[*] cs_ppc: %d\n", sizeof(cs_ppc));
 }
