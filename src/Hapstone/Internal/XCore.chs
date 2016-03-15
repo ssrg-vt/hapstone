@@ -8,9 +8,11 @@ module Hapstone.Internal.XCore where
 import Foreign
 import Foreign.C.Types
 
-{#enum xcore_op_type as XCoreOpType {underscoreToCase} deriving (Show)#}
+{#enum xcore_op_type as XCoreOpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32 deriving Show
+data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32
+    deriving (Show, Eq)
 
 instance Storable XCoreOpMemStruct where
     sizeOf _ = {#sizeof xcore_op_mem#}
@@ -31,23 +33,21 @@ data CsXCoreOp
     | Imm Int32
     | Mem XCoreOpMemStruct
     | Undefined
-    deriving Show
+    deriving (Show, Eq)
 
 instance Storable CsXCoreOp where
-    sizeOf _ = {#sizeof cs_xcore_op#}
-    alignment _ = {#alignof cs_xcore_op#}
+    sizeOf _ = 16
+    alignment _ = 4
     peek p = do
         t <- fromIntegral <$> {#get cs_xcore_op->type#} p
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_xcore_op.type#} + {#sizeof xcore_op_type#})
+        let bP = plusPtr p 4
         case toEnum t of
           XcoreOpReg -> Reg <$> peek bP
           XcoreOpImm -> Imm <$> peek bP
           XcoreOpMem -> Mem <$> peek bP
           _ -> return Undefined
     poke p op = do
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_xcore_op.type#} + {#sizeof xcore_op_type#})
+        let bP = plusPtr p 4
             setType = {#set cs_xcore_op->type#} p . fromIntegral . fromEnum
         case op of
           Reg r -> poke bP r >> setType XcoreOpReg
@@ -55,11 +55,12 @@ instance Storable CsXCoreOp where
           Mem m -> poke bP m >> setType XcoreOpMem
           _ -> setType XcoreOpInvalid
 
-newtype CsXCore = CsXCore [CsXCoreOp] deriving Show
+newtype CsXCore = CsXCore [CsXCoreOp]
+    deriving (Show, Eq)
 
 instance Storable CsXCore where
-    sizeOf _ = {#sizeof cs_xcore#}
-    alignment _ = {#alignof cs_xcore#}
+    sizeOf _ = 132
+    alignment _ = 4
     peek p = do
         num <- fromIntegral <$> {#get cs_xcore->op_count#} p
         CsXCore <$> peekArray num (plusPtr p {#offsetof cs_xcore.operands#})
@@ -69,6 +70,9 @@ instance Storable CsXCore where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_xcore->operands#}) o
 
-{#enum xcore_reg as XCoreReg {underscoreToCase} deriving (Show)#}
-{#enum xcore_insn as XCoreInsn {underscoreToCase} deriving (Show)#}
-{#enum xcore_insn_group as XCoreInsnGroup {underscoreToCase} deriving (Show)#}
+{#enum xcore_reg as XCoreReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum xcore_insn as XCoreInsn {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum xcore_insn_group as XCoreInsnGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
