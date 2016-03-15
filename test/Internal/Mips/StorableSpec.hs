@@ -13,13 +13,13 @@ import Internal.Mips.Default
 -- | main spec
 spec :: Spec
 spec = describe "Hapstone.Internal.Mips" $ do
-    armOpMemStructSpec
+    mipsOpMemStructSpec
     csMipsOpSpec
     csMipsSpec
 
 -- | MipsOpMemStruct spec
-armOpMemStructSpec :: Spec
-armOpMemStructSpec = describe "Storable MipsOpMemStruct" $ do
+mipsOpMemStructSpec :: Spec
+mipsOpMemStructSpec = describe "Storable MipsOpMemStruct" $ do
     it "is a packed struct" $
         sizeOf (undefined :: MipsOpMemStruct) ==
             sizeOf (0 :: CUInt) * 2 + sizeOf (0 :: Word32) * 2
