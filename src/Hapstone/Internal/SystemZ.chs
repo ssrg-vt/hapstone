@@ -8,11 +8,14 @@ module Hapstone.Internal.SystemZ where
 import Foreign
 import Foreign.C.Types
 
-{#enum sysz_cc as SysZCc {underscoreToCase} deriving (Show)#}
+{#enum sysz_cc as SysZCc {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum sysz_op_type as SysZOpType {underscoreToCase} deriving (Show)#}
+{#enum sysz_op_type as SysZOpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-data SysZOpMemStruct = SysZOpMemStruct Word8 Word8 Word64 Int64 deriving Show
+data SysZOpMemStruct = SysZOpMemStruct Word8 Word8 Word64 Int64
+    deriving (Show, Eq)
 
 instance Storable SysZOpMemStruct where
     sizeOf _ = {#sizeof sysz_op_mem#}
@@ -34,15 +37,14 @@ data CsSysZOp
     | Mem SysZOpMemStruct
     | AcReg
     | Undefined
-    deriving Show
+    deriving (Show, Eq)
 
 instance Storable CsSysZOp where
-    sizeOf _ = {#sizeof cs_sysz_op#}
-    alignment _ = {#alignof cs_sysz_op#}
+    sizeOf _ = 32
+    alignment _ = 8
     peek p = do
         t <- fromIntegral <$> {#get cs_sysz_op->type#} p
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_sysz_op.type#} + {#sizeof sysz_op_type#})
+        let bP = plusPtr p 8
         case toEnum t of
           SyszOpReg -> Reg <$> peek bP
           SyszOpImm -> Imm <$> peek bP
@@ -50,8 +52,7 @@ instance Storable CsSysZOp where
           SyszOpAcreg -> return AcReg
           SyszOpInvalid -> return Undefined
     poke p op = do
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_sysz_op.type#} + {#sizeof sysz_op_type#})
+        let bP = plusPtr p 8
             setType = {#set cs_sysz_op->type#} p . fromIntegral . fromEnum
         case op of
           Reg r -> do
@@ -69,11 +70,11 @@ instance Storable CsSysZOp where
 data CsSysZ = CsSysZ
     { cc :: SysZCc
     , operands :: [CsSysZOp]
-    } deriving Show
+    } deriving (Show, Eq)
 
 instance Storable CsSysZ where
-    sizeOf _ = {#sizeof cs_sysz#}
-    alignment _ = {#alignof cs_sysz#}
+    sizeOf _ = 200
+    alignment _ = 8
     peek p = CsSysZ
         <$> ((toEnum . fromIntegral) <$> {#get cs_sysz->cc#} p)
         <*> do num <- fromIntegral <$> {#get cs_sysz->op_count#} p
@@ -86,6 +87,9 @@ instance Storable CsSysZ where
            then error "operands overflew 6 elements"
            else pokeArray (plusPtr p {#offsetof cs_sysz->operands#}) o
 
-{#enum sysz_reg as SyszReg {underscoreToCase} deriving (Show)#}
-{#enum sysz_insn as SyszInsn {underscoreToCase} deriving (Show)#}
-{#enum sysz_insn_group as SyszInsnGroup {underscoreToCase} deriving (Show)#}
+{#enum sysz_reg as SysZReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum sysz_insn as SysZInsn {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum sysz_insn_group as SysZInsnGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
