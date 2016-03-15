@@ -1,0 +1,10 @@
+xcore.h
+[*] xcore_op_mem: 12
+[*] cs_xcore_op: 16
+[*] cs_xcore: 132
+cs_xcore_op: 16
+cs_xcore_op	offset	size
+type:		0	4
+union.reg:	4	4
+union.imm:	4	4
+union.mem:	4	12

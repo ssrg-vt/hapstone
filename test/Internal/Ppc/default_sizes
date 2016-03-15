@@ -1,0 +1,11 @@
+ppc.h
+[*] ppc_op_mem: 8
+[*] cs_ppc_op: 16
+[*] cs_ppc: 140
+cs_ppc_op: 16
+cs_ppc_op	offset	size
+type:		0	4
+union.reg:	4	4
+union.imm:	4	4
+union.mem:	4	8
+union.crx:	4	12

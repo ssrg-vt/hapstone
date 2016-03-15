@@ -1,0 +1,33 @@
+x86.h
+[*] x86_op_mem: 24
+[*] cs_x86_op: 48
+[*] cs_x86: 432
+cs_x86_op: 48
+cs_x86_op	offset	size
+type:		0	4
+union.reg:	8	4
+union.imm:	8	8
+union.fp:	8	8
+union.mem:	8	24
+size:		32	1
+avx_bcast:	36	4
+avx_zero_opmask:40	1
+
+cs_x86:	432
+cs_x86		offset	size
+prefix:		0	4
+opcode:		4	4
+rex:		8	1
+addr_size:	9	1
+modrm:		10	1
+sib:		11	1
+disp:		12	4
+sib_index:	16	4
+sib_scale:	20	1
+sib_base:	24	4
+sse_cc:		28	4
+avx_cc:		32	4
+avx_sae:	36	1
+avx_rm:		40	4
+op_count:	44	1
+operands:	48	384

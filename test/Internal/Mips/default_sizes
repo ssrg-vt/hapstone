@@ -1,0 +1,10 @@
+mips.h
+[*] mips_op_mem: 16
+[*] cs_mips_op: 24
+[*] cs_mips: 200
+cs_mips_op: 24
+cs_mips_op	offset	size
+type:		0	4
+union.reg:	8	4
+union.imm:	8	8
+union.mem:	8	16

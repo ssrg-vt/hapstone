@@ -1,0 +1,16 @@
+arm.h
+[*] arm_op_mem: 16
+[*] cs_arm_op: 40
+[*] cs_arm: 1480
+cs_arm_op: 40
+cs_arm_op	offset	size
+vector_index:	0	4
+shift.type:	4	4
+shift.value:	8	4
+type:		12	4
+union.reg:	16	4
+union.imm:	16	4
+union.fp:	16	8
+union.mem:	16	16
+union.setend:	16	4
+subtracted:	32	1

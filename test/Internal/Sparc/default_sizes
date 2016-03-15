@@ -1,0 +1,10 @@
+sparc.h
+[*] sparc_op_mem: 8
+[*] cs_sparc_op: 12
+[*] cs_sparc: 60
+cs_sparc_op: 12
+cs_sparc_op	offset	size
+type:		0	4
+union.reg:	4	4
+union.imm:	4	4
+union.mem:	4	8

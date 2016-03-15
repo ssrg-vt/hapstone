@@ -1,0 +1,10 @@
+systemz.h
+[*] sysz_op_mem: 24
+[*] cs_sysz_op: 32
+[*] cs_sysz: 200
+cs_sysz_op: 32
+cs_sysz_op	offset	size
+type:		0	4
+union.reg:	8	4
+union.imm:	8	8
+union.mem:	8	24

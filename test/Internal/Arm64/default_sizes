@@ -1,0 +1,21 @@
+arm64.h
+[*] arm64_op_mem: 12
+[*] cs_arm64_op: 48
+[*] cs_arm64: 392
+cs_arm64_op: 48
+cs_arm64_op	offset	size
+vector_index:	0	4
+vas:		4	4
+vess:		8	4
+shift.type:	12	4
+shift.value:	16	4
+ext:		20	4
+type:		24	4
+union.reg:	32	4
+union.imm:	32	8
+union.fp:	32	8
+union.mem:	32	12
+union.pstate:	32	4
+union.sys:	32	4
+union.prefetch:	32	4
+union.barrier:	32	4
