@@ -13,19 +13,26 @@ import Data.Maybe (fromMaybe)
 import Foreign
 import Foreign.C.Types
 
-{#enum x86_reg as X86Reg {underscoreToCase} deriving (Show)#}
+{#enum x86_reg as X86Reg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum x86_op_type as X86OpType {underscoreToCase} deriving (Show)#}
+{#enum x86_op_type as X86OpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum x86_avx_bcast as X86AvxBcast {underscoreToCase} deriving (Show)#}
-{#enum x86_sse_cc as X86SseCc {underscoreToCase} deriving (Show)#}
-{#enum x86_avx_cc as X86AvxCc {underscoreToCase} deriving (Show)#}
-{#enum x86_avx_rm as X86AvxRm {underscoreToCase} deriving (Show)#}
+{#enum x86_avx_bcast as X86AvxBcast {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum x86_sse_cc as X86SseCc {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum x86_avx_cc as X86AvxCc {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum x86_avx_rm as X86AvxRm {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum x86_prefix as X86Prefix {underscoreToCase} deriving (Show)#}
+{#enum x86_prefix as X86Prefix {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 data X86OpMemStruct = X86OpMemStruct Word32 Word32 Word32 Int32 Int64
-    deriving Show
+    deriving (Show, Eq)
 
 instance Storable X86OpMemStruct where
     sizeOf _ = {#sizeof x86_op_mem#}
@@ -49,23 +56,22 @@ data CsX86OpValue
     | Fp Double
     | Mem X86OpMemStruct
     | Undefined
-    deriving Show
+    deriving (Show, Eq)
 
 data CsX86Op = CsX86Op
     { value :: CsX86OpValue
     , size :: Word8
-    , avxBcast :: Maybe X86AvxBcast
+    , avxBcast :: X86AvxBcast
     , avxZeroOpmask :: Bool
-    } deriving Show
+    } deriving (Show, Eq)
 
 instance Storable CsX86Op where
-    sizeOf _ = {#sizeof cs_x86_op#}
-    alignment _ = {#alignof cs_x86_op#}
+    sizeOf _ = 48
+    alignment _ = 8
     peek p = CsX86Op
         <$> do
             t <- fromIntegral <$> {#get cs_x86_op->type#} p
-            let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-                   ({#offsetof cs_x86_op.type#} + {#sizeof x86_op_type#})
+            let bP = plusPtr p 8
             case toEnum t of
               X86OpReg -> (Reg . toEnum . fromIntegral) <$>
                   (peek bP :: IO CInt)
@@ -73,15 +79,12 @@ instance Storable CsX86Op where
               X86OpFp -> (Fp . realToFrac) <$> (peek bP :: IO CDouble)
               X86OpMem -> Mem <$> peek bP
               _ -> return Undefined
-        <*> (fromIntegral <$> {#get cs_x86_op->size#} p)
-        <*> do bc <- fromIntegral <$> ({#get cs_x86_op->avx_bcast#} p)
-               if bc == 0
-                  then return Nothing
-                  else return . Just $ toEnum bc
-        <*> ({#get cs_x86_op->avx_zero_opmask#} p)
+        <*> (peekByteOff p 32) -- size
+        <*> ((toEnum . fromIntegral) <$>
+                (peekByteOff p 36 :: IO CInt)) -- avx_bcast
+        <*> (toBool <$> (peekByteOff p 40 :: IO Word8)) -- avx_zero_opmask
     poke p (CsX86Op val s ab az) = do
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_x86_op.type#} + {#sizeof x86_op_type#})
+        let bP = plusPtr p 8
             setType = {#set cs_x86_op->type#} p . fromIntegral . fromEnum
         case val of
           Reg r -> do
@@ -97,10 +100,9 @@ instance Storable CsX86Op where
               poke bP m
               setType X86OpMem
           Undefined -> setType X86OpInvalid
-        {#set cs_x86_op->size#} p (fromIntegral s)
-        {#set cs_x86_op->avx_bcast#} p
-            (fromIntegral . fromMaybe 0 $ fromEnum <$> ab :: CInt)
-        {#set cs_x86_op->avx_zero_opmask#} p az
+        pokeByteOff p 32 s -- size
+        pokeByteOff p 36 (fromIntegral $ fromEnum ab :: CInt) -- avx_bcast
+        pokeByteOff p 40 (fromBool az :: Word8) -- avx_zero_opmask
 
 data CsX86 = CsX86
     { prefix :: (Maybe Word8, Maybe Word8, Maybe Word8, Maybe Word8)
@@ -118,18 +120,18 @@ data CsX86 = CsX86
     , avxSae :: Bool
     , avxRm :: X86AvxRm
     , operands :: [CsX86Op]
-    } deriving Show
+    } deriving (Show, Eq)
 
 fromZero :: (Eq a, Num a) => a -> Maybe a
 fromZero 0 = Nothing
 fromZero v = Just v
 
 instance Storable CsX86 where
-    sizeOf _ = {#sizeof cs_x86#}
-    alignment _ = {#alignof cs_x86#}
+    sizeOf _ = 432
+    alignment _ = 8
     peek p = CsX86
         <$> do let bP = plusPtr p {#offsetof cs_x86->prefix#}
-               [p0, p1, p2, p3] <- peekArray 4 bP
+               [p0, p1, p2, p3] <- peekArray 4 bP :: IO [Word8]
                return (fromZero p0, fromZero p1, fromZero p2, fromZero p3)
         <*> (dropWhileEnd (== 0) <$>
             peekArray 4 (plusPtr p {#offsetof cs_x86->opcode#}))
@@ -143,7 +145,7 @@ instance Storable CsX86 where
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->sib_base#} p)
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->sse_cc#} p)
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->avx_cc#} p)
-        <*> {#get cs_x86->avx_sae#} p
+        <*> (toBool <$> (peekByteOff p 36 :: IO Word8)) -- avx_sae
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->avx_rm#} p)
         <*> do num <- fromIntegral <$> {#get cs_x86->op_count#} p
                let ptr = plusPtr p {#offsetof cs_x86.operands#}
@@ -167,12 +169,14 @@ instance Storable CsX86 where
         {#set cs_x86->sib_base#} p (fromIntegral $ fromEnum sB)
         {#set cs_x86->sse_cc#} p (fromIntegral $ fromEnum sC)
         {#set cs_x86->avx_cc#} p (fromIntegral $ fromEnum aC)
-        {#set cs_x86->avx_sae#} p aS
+        pokeByteOff p 36 (fromBool aS :: Word8) -- avx_sae
         {#set cs_x86->avx_rm#} p (fromIntegral $ fromEnum aR)
         {#set cs_x86->op_count#} p (fromIntegral $ length o)
         if length o > 8
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_x86->operands#}) o
 
-{#enum x86_insn as X86Insn {underscoreToCase} deriving (Show)#}
-{#enum x86_insn_group as X86InsnGroup {underscoreToCase} deriving (Show)#}
+{#enum x86_insn as X86Insn {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum x86_insn_group as X86InsnGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}

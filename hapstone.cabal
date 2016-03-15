@@ -44,6 +44,8 @@ test-suite hapstone-test
                        Internal.Sparc.Default,
                        Internal.SystemZ.StorableSpec,
                        Internal.SystemZ.Default
+                       Internal.X86.StorableSpec,
+                       Internal.X86.Default
   build-depends:       base,
                        hapstone,
                        hspec,
