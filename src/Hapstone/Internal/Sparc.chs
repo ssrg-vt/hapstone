@@ -8,12 +8,16 @@ module Hapstone.Internal.Sparc where
 import Foreign
 import Foreign.C.Types
 
-{#enum sparc_cc as SparcCc {underscoreToCase} deriving (Show)#}
-{#enum sparc_hint as SparcHint {underscoreToCase} deriving (Show)#}
+{#enum sparc_cc as SparcCc {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum sparc_hint as SparcHint {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-{#enum sparc_op_type as SparcOpType {underscoreToCase} deriving (Show)#}
+{#enum sparc_op_type as SparcOpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-data SparcOpMemStruct = SparcOpMemStruct Word8 Word8 Int32 deriving Show
+data SparcOpMemStruct = SparcOpMemStruct Word8 Word8 Int32
+    deriving (Show, Eq)
 
 instance Storable SparcOpMemStruct where
     sizeOf _ = {#sizeof sparc_op_mem#}
@@ -32,23 +36,21 @@ data CsSparcOp
     | Imm Int32
     | Mem SparcOpMemStruct
     | Undefined
-    deriving Show
+    deriving (Show, Eq)
 
 instance Storable CsSparcOp where
-    sizeOf _ = {#sizeof cs_sparc_op#}
-    alignment _ = {#alignof cs_sparc_op#}
+    sizeOf _ = 12
+    alignment _ = 4
     peek p = do
-        t <- fromIntegral <$> {#get cs_sparc_op->type#} p
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_sparc_op.type#} + {#sizeof sparc_op_type#})
+        t <- fromIntegral <$> ({#get cs_sparc_op->type#} p :: IO CInt)
+        let bP = plusPtr p 4
         case toEnum t of
-          SparcOpReg -> (Reg . toEnum . fromIntegral) <$> (peek bP :: IO CInt)
+          SparcOpReg -> Reg <$> peek bP
           SparcOpImm -> Imm <$> peek bP
           SparcOpMem -> Mem <$> peek bP
           _ -> return Undefined
     poke p op = do
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_sparc_op.type#} + {#sizeof sparc_op_type#})
+        let bP = plusPtr p 4
             setType = {#set cs_sparc_op->type#} p . fromIntegral . fromEnum
         case op of
           Reg r -> do
@@ -66,11 +68,11 @@ data CsSparc = CsSparc
     { cc :: SparcCc
     , hint :: SparcHint
     , operands :: [CsSparcOp]
-    } deriving Show
+    } deriving (Show, Eq)
 
 instance Storable CsSparc where
-    sizeOf _ = {#sizeof cs_sparc#}
-    alignment _ = {#alignof cs_sparc#}
+    sizeOf _ = 60
+    alignment _ = 4
     peek p = CsSparc
         <$> ((toEnum . fromIntegral) <$> {#get cs_sparc->cc#} p)
         <*> ((toEnum . fromIntegral) <$> {#get cs_sparc->hint#} p)
@@ -85,6 +87,9 @@ instance Storable CsSparc where
            then error "operands overflew 4 elements"
            else pokeArray (plusPtr p {#offsetof cs_sparc->operands#}) o
 
-{#enum sparc_reg as SparcReg {underscoreToCase} deriving (Show)#}
-{#enum sparc_insn as SparcInsn {underscoreToCase} deriving (Show)#}
-{#enum sparc_insn_group as SparcInsnGroup {underscoreToCase} deriving (Show)#}
+{#enum sparc_reg as SparcReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum sparc_insn as SparcInsn {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum sparc_insn_group as SparcInsnGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}

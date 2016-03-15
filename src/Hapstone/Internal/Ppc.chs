@@ -60,8 +60,7 @@ instance Storable CsPpcOp where
     alignment _ = 4
     peek p = do
         t <- fromIntegral <$> {#get cs_ppc_op->type#} p
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_ppc_op.type#} + {#sizeof ppc_op_type#})
+        let bP = plusPtr p 4
         case toEnum t of
           PpcOpReg -> (Reg . toEnum . fromIntegral) <$> (peek bP :: IO CInt)
           PpcOpImm -> Imm <$> peek bP
@@ -69,8 +68,7 @@ instance Storable CsPpcOp where
           PpcOpCrx -> Crx <$> peek bP
           _ -> return Undefined
     poke p op = do
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_ppc_op.type#} + {#sizeof ppc_op_type#})
+        let bP = plusPtr p 4
             setType = {#set cs_ppc_op->type#} p . fromIntegral . fromEnum
         case op of
           Reg r -> do
