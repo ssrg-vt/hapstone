@@ -8,9 +8,11 @@ module Hapstone.Internal.Mips where
 import Foreign
 import Foreign.C.Types
 
-{#enum mips_op_type as MipsOpType {underscoreToCase} deriving (Show)#}
+{#enum mips_op_type as MipsOpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
-data MipsOpMemStruct = MipsOpMemStruct Word32 Int64 deriving Show
+data MipsOpMemStruct = MipsOpMemStruct Word32 Int64
+   deriving (Show, Eq)
 
 instance Storable MipsOpMemStruct where
     sizeOf _ = {#sizeof mips_op_mem#}
@@ -27,23 +29,21 @@ data CsMipsOp
     | Imm Int64
     | Mem MipsOpMemStruct
     | Undefined
-    deriving Show
+    deriving (Show, Eq)
 
 instance Storable CsMipsOp where
-    sizeOf _ = {#sizeof cs_mips_op#}
-    alignment _ = {#alignof cs_mips_op#}
+    sizeOf _ = 24
+    alignment _ = 8
     peek p = do
         t <- fromIntegral <$> {#get cs_mips_op->type#} p
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_mips_op.type#} + {#sizeof mips_op_type#})
+        let bP = plusPtr p 8
         case toEnum t of
           MipsOpReg -> (Reg . fromIntegral) <$> (peek bP :: IO CUInt)
           MipsOpImm -> (Imm . fromIntegral) <$> (peek bP :: IO Int64)
           MipsOpMem -> Mem <$> (peek bP :: IO MipsOpMemStruct)
           _ -> return Undefined
     poke p op = do
-        let bP = plusPtr p -- FIXME: maybe alignment will bite us!
-               ({#offsetof cs_mips_op.type#} + {#sizeof mips_op_type#})
+        let bP = plusPtr p 8
             setType = {#set cs_mips_op->type#} p . fromIntegral . fromEnum
         case op of
           Reg r -> do
@@ -57,11 +57,11 @@ instance Storable CsMipsOp where
               setType MipsOpMem
           _ -> setType MipsOpInvalid
 
-newtype CsMips = CsMips [CsMipsOp] deriving Show
+newtype CsMips = CsMips [CsMipsOp] deriving (Show, Eq)
 
 instance Storable CsMips where
-    sizeOf _ = {#sizeof cs_mips#}
-    alignment _ = {#alignof cs_mips#}
+    sizeOf _ = 200
+    alignment _ = 8
     peek p = CsMips
         <$> do num <- fromIntegral <$> {#get cs_mips->op_count#} p
                let ptr = plusPtr p {#offsetof cs_mips.operands#}
@@ -72,6 +72,9 @@ instance Storable CsMips where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_mips->operands#}) o
 
-{#enum mips_reg as MipsReg {underscoreToCase} deriving (Show)#}
-{#enum mips_insn as MipsInsn {underscoreToCase} deriving (Show)#}
-{#enum mips_insn_group as MipsInsnGroup {underscoreToCase} deriving (Show)#}
+{#enum mips_reg as MipsReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum mips_insn as MipsInsn {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum mips_insn_group as MipsInsnGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}

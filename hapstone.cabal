@@ -35,7 +35,9 @@ test-suite hapstone-test
   other-modules:       Internal.Arm64.StorableSpec,
                        Internal.Arm64.Default,
                        Internal.Arm.StorableSpec,
-                       Internal.Arm.Default
+                       Internal.Arm.Default,
+                       Internal.Mips.StorableSpec,
+                       Internal.Mips.Default
   build-depends:       base,
                        hapstone,
                        hspec,
