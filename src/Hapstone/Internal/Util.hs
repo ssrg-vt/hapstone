@@ -28,3 +28,8 @@ stringLookup :: CString -> Maybe String
 stringLookup s
     | s == nullPtr = Nothing
     | otherwise = Just . unsafePerformIO $ peekCString s
+
+-- convert between Maybe and zero/nonzero Num
+fromZero :: (Eq a, Num a) => a -> Maybe a
+fromZero 0 = Nothing
+fromZero v = Just v

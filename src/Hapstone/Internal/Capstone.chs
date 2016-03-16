@@ -1,13 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Hapstone.Internal.Capstone where
 
-{- TODO's:
-* document all functions properly
-* decide on a consistent use of pure and impure functions
-  * do we want to make everything pure? no, we can't
-  * do we want to make everything IO'ish then? or just where appropriate?
--}
-
 #include <capstone/capstone.h>
 
 {#context lib = "capstone"#}
@@ -32,7 +25,7 @@ import qualified Hapstone.Internal.XCore as XCore
 
 import System.IO.Unsafe (unsafePerformIO)
 
--- capstone's weird handle type
+-- capstone's weird^M^M^M^M^Mopaque handle type
 type Csh = CSize
 {#typedef csh Csh#}
 
@@ -56,12 +49,13 @@ type Csh = CSize
 -- arch-uniting operand type
 {#enum cs_op_type as CsOperand {underscoreToCase} deriving (Show)#}
 
--- instruction groups
+-- arch-uniting instruction group type
 {#enum cs_group_type as CsGroup {underscoreToCase} deriving (Show)#}
 
 -- TODO: what is this SKIPDATA business whose callback function
 -- we happily omitted?
 
+-- architecture specific information
 data ArchInfo
     = X86 X86.CsX86
     | Arm64 Arm64.CsArm64
@@ -238,7 +232,7 @@ csDisasm handle bytes addr num = do
     csFree resPtr resNum
     return res
 
--- free an instruction struct
+-- free an instruction struct array
 {#fun cs_free as ^ {castPtr `Ptr CsInsn', `Int'} -> `()'#}
 
 -- allocate space for an instruction struct
@@ -261,15 +255,31 @@ csInsnName h = stringLookup . csInsnName' h . fromEnum
 csGroupName :: Enum e => Csh -> e -> Maybe String
 csGroupName h = stringLookup . csGroupName' h . fromEnum
 
--- and change these types to the appropriate enum types
--- TODO fix with ghci :/
-{-{#fun pure cs_insn_group as ^
-    {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}
-{#fun pure cs_reg_read as ^
-    {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}
-{#fun pure cs_reg_write as ^
-    {`Csh', withCast* `CsInsn', `Int'} -> `Bool'#}-}
+-- check whether an instruction is member of a group
+foreign import ccall "capstone/capstone.h cs_insn_group"
+    csInsnGroup' :: Csh -> Ptr CsInsn -> IO Bool
+csInsnGroup :: Csh -> CsInsn -> Bool
+csInsnGroup h i = unsafePerformIO . withCast i $ csInsnGroup' h
+
+-- check whether an instruction reads from a register
+foreign import ccall "capstone/capstone.h cs_reg_read"
+    csRegRead' :: Csh -> Ptr CsInsn -> CUInt -> IO Bool
+csRegRead :: Csh -> CsInsn -> Int -> Bool
+csRegRead h i =
+    unsafePerformIO . withCast i . flip (csRegRead' h) . fromIntegral
+
+-- check whether an instruction writes to a register
+foreign import ccall "capstone/capstone.h cs_reg_write"
+    csRegWrite' :: Csh -> Ptr CsInsn -> CUInt -> IO Bool
+csRegWrite :: Csh -> CsInsn -> Int -> Bool
+csRegWrite h i =
+    unsafePerformIO . withCast i . flip (csRegWrite' h) . fromIntegral
+
+-- return the number of operands of given type an instruction has
 {#fun pure cs_op_count as ^
     {`Csh', withCast* `CsInsn', `Int'} -> `Int'#}
+
+-- return the position of the first operand of given type an instruction has,
+-- given an inclusive search range
 {#fun pure cs_op_index as ^
     {`Csh', withCast* `CsInsn', `Int', `Int'} -> `Int'#}

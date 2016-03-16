@@ -8,9 +8,11 @@ module Hapstone.Internal.XCore where
 import Foreign
 import Foreign.C.Types
 
+-- enumeration(s)
 {#enum xcore_op_type as XCoreOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32
     deriving (Show, Eq)
 
@@ -28,6 +30,7 @@ instance Storable XCoreOpMemStruct where
         {#set xcore_op_mem->disp#} p (fromIntegral disp)
         {#set xcore_op_mem->direct#} p (fromIntegral dir)
 
+-- operands
 data CsXCoreOp
     = Reg Word32
     | Imm Int32
@@ -55,6 +58,7 @@ instance Storable CsXCoreOp where
           Mem m -> poke bP m >> setType XcoreOpMem
           _ -> setType XcoreOpInvalid
 
+-- instructions
 newtype CsXCore = CsXCore [CsXCoreOp]
     deriving (Show, Eq)
 
@@ -70,6 +74,7 @@ instance Storable CsXCore where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_xcore->operands#}) o
 
+-- more enumerations
 {#enum xcore_reg as XCoreReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum xcore_insn as XCoreInsn {underscoreToCase}

@@ -8,12 +8,14 @@ module Hapstone.Internal.SystemZ where
 import Foreign
 import Foreign.C.Types
 
+-- enumerations
 {#enum sysz_cc as SysZCc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
 {#enum sysz_op_type as SysZOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data SysZOpMemStruct = SysZOpMemStruct Word8 Word8 Word64 Int64
     deriving (Show, Eq)
 
@@ -31,6 +33,7 @@ instance Storable SysZOpMemStruct where
         {#set sysz_op_mem->length#} p (fromIntegral l)
         {#set sysz_op_mem->disp#} p (fromIntegral d)
 
+-- operands
 data CsSysZOp
     = Reg Word32
     | Imm Int64
@@ -67,6 +70,7 @@ instance Storable CsSysZOp where
           AcReg -> setType SyszOpAcreg
           _ -> setType SyszOpInvalid
 
+-- instructions
 data CsSysZ = CsSysZ
     { cc :: SysZCc
     , operands :: [CsSysZOp]
@@ -87,6 +91,7 @@ instance Storable CsSysZ where
            then error "operands overflew 6 elements"
            else pokeArray (plusPtr p {#offsetof cs_sysz->operands#}) o
 
+-- more enumerations
 {#enum sysz_reg as SysZReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum sysz_insn as SysZInsn {underscoreToCase}

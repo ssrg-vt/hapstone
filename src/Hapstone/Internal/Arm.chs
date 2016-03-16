@@ -8,6 +8,7 @@ module Hapstone.Internal.Arm where
 import Foreign
 import Foreign.C.Types
 
+-- enumerations
 {#enum arm_shifter as ArmShifter {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum arm_cc as ArmConditionCode {underscoreToCase}
@@ -29,6 +30,7 @@ import Foreign.C.Types
 {#enum arm_vectordata_type as ArmVectordataType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data ArmOpMemStruct = ArmOpMemStruct Word32 Word32 Int32 Int32
     deriving (Show, Eq)
 
@@ -46,6 +48,7 @@ instance Storable ArmOpMemStruct where
         {#set arm_op_mem->scale#} p (fromIntegral s)
         {#set arm_op_mem->disp#} p (fromIntegral d)
 
+-- possible operand types
 data CsArmOpValue
     = Reg Word32
     | Sysreg Word32
@@ -58,6 +61,7 @@ data CsArmOpValue
     | Undefined
     deriving (Show, Eq)
 
+-- operands
 data CsArmOp = CsArmOp
     { vectorIndex :: Int32
     , shift :: (ArmShifter, Word32)
@@ -122,6 +126,7 @@ instance Storable CsArmOp where
           _ -> setType ArmOpInvalid
         pokeByteOff p 32 (fromBool sub :: Word8) -- subtracted
 
+-- instructions
 data CsArm = CsArm
     { usermode :: Bool
     , vectorSize :: Int32
@@ -166,6 +171,7 @@ instance Storable CsArm where
            then error "operands overflew 36 elements"
            else pokeArray (plusPtr p {#offsetof cs_arm->operands#}) o
 
+-- more enumerations
 {#enum arm_reg as ArmReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum arm_insn as ArmInsn {underscoreToCase}

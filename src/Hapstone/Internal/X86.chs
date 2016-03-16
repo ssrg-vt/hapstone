@@ -13,6 +13,9 @@ import Data.Maybe (fromMaybe)
 import Foreign
 import Foreign.C.Types
 
+import Hapstone.Internal.Util
+
+-- enumerations
 {#enum x86_reg as X86Reg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
@@ -31,6 +34,7 @@ import Foreign.C.Types
 {#enum x86_prefix as X86Prefix {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data X86OpMemStruct = X86OpMemStruct Word32 Word32 Word32 Int32 Int64
     deriving (Show, Eq)
 
@@ -50,6 +54,7 @@ instance Storable X86OpMemStruct where
         {#set x86_op_mem->scale#} p (fromIntegral sc)
         {#set x86_op_mem->disp#} p (fromIntegral d)
 
+-- possible operand types
 data CsX86OpValue
     = Reg X86Reg
     | Imm Word64
@@ -58,6 +63,7 @@ data CsX86OpValue
     | Undefined
     deriving (Show, Eq)
 
+-- operands
 data CsX86Op = CsX86Op
     { value :: CsX86OpValue
     , size :: Word8
@@ -104,6 +110,7 @@ instance Storable CsX86Op where
         pokeByteOff p 36 (fromIntegral $ fromEnum ab :: CInt) -- avx_bcast
         pokeByteOff p 40 (fromBool az :: Word8) -- avx_zero_opmask
 
+-- instructions
 data CsX86 = CsX86
     { prefix :: (Maybe Word8, Maybe Word8, Maybe Word8, Maybe Word8)
     , opcode :: [Word8]
@@ -121,10 +128,6 @@ data CsX86 = CsX86
     , avxRm :: X86AvxRm
     , operands :: [CsX86Op]
     } deriving (Show, Eq)
-
-fromZero :: (Eq a, Num a) => a -> Maybe a
-fromZero 0 = Nothing
-fromZero v = Just v
 
 instance Storable CsX86 where
     sizeOf _ = 432
@@ -176,6 +179,7 @@ instance Storable CsX86 where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_x86->operands#}) o
 
+-- more enumerations
 {#enum x86_insn as X86Insn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum x86_insn_group as X86InsnGroup {underscoreToCase}

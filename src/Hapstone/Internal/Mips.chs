@@ -8,9 +8,11 @@ module Hapstone.Internal.Mips where
 import Foreign
 import Foreign.C.Types
 
+-- enumeration(s)
 {#enum mips_op_type as MipsOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data MipsOpMemStruct = MipsOpMemStruct Word32 Int64
    deriving (Show, Eq)
 
@@ -24,6 +26,7 @@ instance Storable MipsOpMemStruct where
         {#set mips_op_mem->base#} p (fromIntegral b)
         {#set mips_op_mem->disp#} p(fromIntegral d)
 
+-- operands
 data CsMipsOp
     = Reg Word32
     | Imm Int64
@@ -57,6 +60,7 @@ instance Storable CsMipsOp where
               setType MipsOpMem
           _ -> setType MipsOpInvalid
 
+-- instructions
 newtype CsMips = CsMips [CsMipsOp] deriving (Show, Eq)
 
 instance Storable CsMips where
@@ -72,6 +76,7 @@ instance Storable CsMips where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_mips->operands#}) o
 
+-- more enumerations
 {#enum mips_reg as MipsReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum mips_insn as MipsInsn {underscoreToCase}

@@ -8,6 +8,7 @@ module Hapstone.Internal.Sparc where
 import Foreign
 import Foreign.C.Types
 
+-- enumerations
 {#enum sparc_cc as SparcCc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum sparc_hint as SparcHint {underscoreToCase}
@@ -16,6 +17,7 @@ import Foreign.C.Types
 {#enum sparc_op_type as SparcOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data SparcOpMemStruct = SparcOpMemStruct Word8 Word8 Int32
     deriving (Show, Eq)
 
@@ -31,6 +33,7 @@ instance Storable SparcOpMemStruct where
         {#set sparc_op_mem->index#} p (fromIntegral i)
         {#set sparc_op_mem->disp#} p (fromIntegral d)
 
+-- operands
 data CsSparcOp
     = Reg Word32
     | Imm Int32
@@ -64,6 +67,7 @@ instance Storable CsSparcOp where
               setType SparcOpMem
           _ -> setType SparcOpInvalid
 
+-- instructions
 data CsSparc = CsSparc
     { cc :: SparcCc
     , hint :: SparcHint
@@ -87,6 +91,7 @@ instance Storable CsSparc where
            then error "operands overflew 4 elements"
            else pokeArray (plusPtr p {#offsetof cs_sparc->operands#}) o
 
+-- more enumerations
 {#enum sparc_reg as SparcReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum sparc_insn as SparcInsn {underscoreToCase}

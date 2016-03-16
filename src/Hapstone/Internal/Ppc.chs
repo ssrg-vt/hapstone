@@ -8,6 +8,7 @@ module Hapstone.Internal.Ppc where
 import Foreign
 import Foreign.C.Types
 
+-- enumerations
 {#enum ppc_bc as PpcBc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum ppc_bh as PpcBh {underscoreToCase}
@@ -19,6 +20,7 @@ import Foreign.C.Types
 {#enum ppc_op_type as PpcOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data PpcOpMemStruct = PpcOpMemStruct PpcReg Int32
     deriving (Show, Eq)
 
@@ -32,6 +34,7 @@ instance Storable PpcOpMemStruct where
         {#set ppc_op_mem->base#} p (fromIntegral $ fromEnum b)
         {#set ppc_op_mem->disp#} p (fromIntegral d)
 
+-- CRX operands
 data PpcOpCrxStruct = PpcOpCrxStruct Word32 PpcReg PpcBc
     deriving (Show, Eq)
 
@@ -47,6 +50,7 @@ instance Storable PpcOpCrxStruct where
         {#set ppc_op_crx->reg#} p (fromIntegral $ fromEnum r)
         {#set ppc_op_crx->cond#} p (fromIntegral $ fromEnum c)
 
+-- operands
 data CsPpcOp
     = Reg PpcReg
     | Imm Int32
@@ -85,6 +89,7 @@ instance Storable CsPpcOp where
               setType PpcOpCrx
           _ -> setType PpcOpInvalid
 
+-- instructions
 data CsPpc = CsPpc 
     { bc :: PpcBc
     , bh :: PpcBh
@@ -111,6 +116,7 @@ instance Storable CsPpc where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_ppc->operands#}) o
 
+-- more enumerations
 {#enum ppc_insn as PpcInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum ppc_insn_group as PpcInsnGroup {underscoreToCase}

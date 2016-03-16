@@ -10,6 +10,7 @@ import Control.Monad (join)
 import Foreign
 import Foreign.C.Types
 
+-- enumarations
 {#enum arm64_shifter as Arm64Shifter {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum arm64_extender as Arm64Extender {underscoreToCase}
@@ -45,6 +46,7 @@ import Foreign.C.Types
 {#enum arm64_prefetch_op as Arm64PrefetchOp {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- memory access operands
 data Arm64OpMemStruct = Arm64OpMemStruct Word32 Word32 Int32
     deriving (Show, Eq)
 
@@ -60,6 +62,7 @@ instance Storable Arm64OpMemStruct where
         {#set arm64_op_mem->index#} p (fromIntegral i)
         {#set arm64_op_mem->disp#} p (fromIntegral d)
 
+-- possible operand types
 data CsArm64OpValue
     = Reg Word32
     | Imm Int64
@@ -73,6 +76,7 @@ data CsArm64OpValue
     | Undefined
     deriving (Show, Eq)
 
+-- operands
 data CsArm64Op = CsArm64Op
     { vectorIndex :: Int32
     , vas :: Arm64Vas
@@ -149,6 +153,7 @@ instance Storable CsArm64Op where
               setType Arm64OpBarrier
           _ -> setType Arm64OpInvalid
 
+-- instructions
 data CsArm64 = CsArm64
     { cc :: Arm64ConditionCode
     , updateFlags :: Bool
@@ -175,6 +180,7 @@ instance Storable CsArm64 where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_arm64->operands#}) o
 
+-- more enumerations
 {#enum arm64_reg as Arm64Reg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum arm64_insn as Arm64Insn {underscoreToCase}
