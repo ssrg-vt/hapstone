@@ -32,6 +32,27 @@ module Hapstone.Internal.Capstone
     , csOpIndex
     ) where
 
+{-
+A few notes on API design
+
+This is just a roughly 1:1 translation of the capstone C headers to Haskell.
+Obviously, it isn't a very pleasant experience to use, so a higher-level API
+is needed. The approach there would be like follows:
+* determine the common workflows with capstone (this is easy)
+* write wrappers around those workflows
+
+The most notorious issues:
+* wrap allocation and deallocation of structs, so that each pure function is
+  a no-op to the runtime
+* wrap datatype conversion between architecture specific enumerations and
+  interger types. This is best done via typeclasses or type families.
+* wrap instruction structures to provide better architecture separation
+
+Those should be less straightforward to handle and require some more work, a
+few drafts should be easy to write, however.
+
+-}
+
 #include <capstone/capstone.h>
 
 {#context lib = "capstone"#}
