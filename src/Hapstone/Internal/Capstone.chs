@@ -1,5 +1,36 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-module Hapstone.Internal.Capstone where
+module Hapstone.Internal.Capstone 
+    ( Csh
+    , CsArch(..)
+    , CsSupport(..)
+    , CsMode(..)
+    , CsOption(..)
+    , CsOptionState(..)
+    , CsOperand(..)
+    , CsGroup(..)
+    , CsDetail(..)
+    , peekDetail
+    , CsInsn(..)
+    , csInsnOffset
+    , CsErr(..)
+    , csSupport
+    , csOpen
+    , csClose
+    , csOption
+    , csErrno
+    , csStrerror
+    , csDisasm
+    , csFree
+    , csMalloc
+    , csRegName
+    , csInsnName
+    , csGroupName
+    , csInsnGroup
+    , csRegRead
+    , csRegWrite
+    , csOpCount
+    , csOpIndex
+    ) where
 
 #include <capstone/capstone.h>
 
