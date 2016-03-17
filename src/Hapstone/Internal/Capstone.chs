@@ -8,6 +8,8 @@ module Hapstone.Internal.Capstone
     , CsOptionState(..)
     , CsOperand(..)
     , CsGroup(..)
+    , CsSkipdataCallback
+    , CsSkipdataStruct(..)
     , CsDetail(..)
     , peekDetail
     , CsInsn(..)
@@ -43,7 +45,7 @@ is needed. The approach there would be like follows:
 
 The most notorious issues:
 * wrap allocation and deallocation of structs, so that each pure function is
-  a no-op to the runtime
+  a no-op to the runtime's state
 * wrap datatype conversion between architecture specific enumerations and
   interger types. This is best done via typeclasses or type families.
 * wrap instruction structures to provide better architecture separation
@@ -61,7 +63,7 @@ import Control.Monad (join)
 
 import Foreign
 import Foreign.C.Types
-import Foreign.C.String (CString, peekCString, withCString)
+import Foreign.C.String (CString, peekCString, newCString)
 import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr
 
@@ -104,8 +106,29 @@ type Csh = CSize
 -- arch-uniting instruction group type
 {#enum cs_group_type as CsGroup {underscoreToCase} deriving (Show)#}
 
--- TODO: what is this SKIPDATA business whose callback function
--- we happily omitted?
+-- callback type for user-defined SKIPDATA work
+type CsSkipdataCallback =
+    FunPtr (Ptr Word8 -> CSize -> CSize -> Ptr () -> IO CSize)
+
+-- user-defined SKIPDATA setup
+data CsSkipdataStruct = CsSkipdataStruct String CsSkipdataCallback (Ptr ())
+
+instance Storable CsSkipdataStruct where
+    sizeOf _ = {#sizeof cs_opt_skipdata#}
+    alignment _ = {#alignof cs_opt_skipdata#}
+    peek p = CsSkipdataStruct
+        <$> (peekCString =<< {#get cs_opt_skipdata->mnemonic#} p)
+        <*> (castFunPtr <$> {#get cs_opt_skipdata->callback#} p)
+        <*> {#get cs_opt_skipdata->user_data#} p
+    poke p (CsSkipdataStruct s c d) = do
+        newCString s >>= {#set cs_opt_skipdata->mnemonic#} p
+        {#set cs_opt_skipdata->callback#} p (castFunPtr c)
+        {#set cs_opt_skipdata->user_data#} p d
+
+csSetSkipdata :: Csh -> Maybe CsSkipdataStruct -> IO CsErr
+csSetSkipdata h Nothing = csOption h CsOptSkipdata CsOptOff
+csSetSkipdata h (Just s) =
+    with s (csOption h CsOptSkipdata . fromIntegral . ptrToWordPtr)
 
 -- architecture specific information
 data ArchInfo
@@ -219,10 +242,10 @@ instance Storable CsInsn where
            else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
         if length m >= 32
            then error "mnemonic overflew 32 bytes"
-           else withCString m ({#set cs_insn->mnemonic#} p)
+           else newCString m >>= {#set cs_insn->mnemonic#} p
         if length o >= 160
            then error "op_str overflew 160 bytes"
-           else withCString o ({#set cs_insn->op_str#} p)
+           else newCString o >>= {#set cs_insn->op_str#} p
         csDetailPtr <- castPtr <$> ({#get cs_insn->detail#} p)
         poke csDetailPtr d
 
