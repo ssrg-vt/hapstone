@@ -22,6 +22,7 @@ module Hapstone.Internal.Capstone
     , csErrno
     , csStrerror
     , csDisasm
+    , csDisasmIter
     , csFree
     , csMalloc
     , csRegName
@@ -217,7 +218,7 @@ data CsInsn = CsInsn
     , bytes :: [Word8]
     , mnemonic :: String
     , opStr :: String
-    , detail :: CsDetail
+    , detail :: Maybe CsDetail
     } deriving Show
 
 -- The untagged-union-problem propagates here as well
@@ -230,9 +231,9 @@ instance Storable CsInsn where
         <*> do num <- fromIntegral <$> {#get cs_insn->size#} p
                let ptr = plusPtr p {#offsetof cs_insn->bytes#}
                peekArray num ptr
-        <*> (peekCString =<< {#get cs_insn->mnemonic#} p)
-        <*> (peekCString =<< {#get cs_insn->op_str#} p)
-        <*> (castPtr <$> {#get cs_insn->detail#} p >>= peek)
+        <*> (peekCString (plusPtr p {#offsetof cs_insn->mnemonic#}))
+        <*> (peekCString (plusPtr p {#offsetof cs_insn->op_str#}))
+        <*> (castPtr <$> {#get cs_insn->detail#} p >>= peekMaybe)
     poke p (CsInsn i a b m o d) = do
         {#set cs_insn->id#} p (fromIntegral i)
         {#set cs_insn->address#} p (fromIntegral a)
@@ -242,12 +243,15 @@ instance Storable CsInsn where
            else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
         if length m >= 32
            then error "mnemonic overflew 32 bytes"
-           else newCString m >>= {#set cs_insn->mnemonic#} p
+           else pokeArray (plusPtr p {#offsetof cs_insn.mnemonic#}) m
         if length o >= 160
            then error "op_str overflew 160 bytes"
-           else newCString o >>= {#set cs_insn->op_str#} p
-        csDetailPtr <- castPtr <$> ({#get cs_insn->detail#} p)
-        poke csDetailPtr d
+           else pokeArray (plusPtr p {#offsetof cs_insn.op_str#}) o
+        case d of
+          Nothing -> {#set cs_insn->detail#} p nullPtr
+          Just d' ->  do csDetailPtr <- malloc
+                         poke csDetailPtr d'
+                         {#set cs_insn->detail#} p (castPtr csDetailPtr)
 
 -- our own port of the CS_INSN_OFFSET macro
 csInsnOffset :: Ptr CsInsn -> Int -> Int
@@ -303,7 +307,7 @@ csDisasm handle bytes addr num = do
         (fromIntegral num) passedPtr
     resPtr <- peek passedPtr
     free passedPtr
-    res <- mapM (peek . plusPtr resPtr . ({#sizeof cs_insn#} *)) [0..resNum]
+    res <- peekArray resNum resPtr
     csFree resPtr resNum
     return res
 
@@ -313,7 +317,36 @@ csDisasm handle bytes addr num = do
 -- allocate space for an instruction struct
 {#fun cs_malloc as ^ {`Csh'} -> `Ptr CsInsn' castPtr#}
 
--- TODO: decide whether we want cs_disasm_iter
+-- disassemble one instruction at a time
+foreign import ccall "capstone/capstone.h cs_disasm_iter"
+    csDisasmIter' :: Csh -- handle
+                  -> Ptr (Ptr CUChar) -> Ptr CSize -- buffer description
+                  -> Ptr CULong -- address to start at
+                  -> Ptr CsInsn -- output buffer
+                  -> IO Bool -- success
+
+csDisasmIter :: Csh -> [Word8] -> Word64
+             -> IO ([Word8], Word64, Either CsErr CsInsn)
+csDisasmIter handle bytes addr = do
+    array <- newArray (map fromIntegral bytes) :: IO (Ptr CUChar)
+    arrayPtr <- malloc :: IO (Ptr (Ptr CUChar))
+    poke arrayPtr array
+    sizePtr <- malloc :: IO (Ptr CSize)
+    poke sizePtr (fromIntegral $ length bytes)
+    addrPtr <- malloc :: IO (Ptr CULong)
+    poke addrPtr (fromIntegral addr)
+    insnPtr <- csMalloc handle
+    success <- csDisasmIter' handle arrayPtr sizePtr addrPtr insnPtr
+    bytes' <- join $
+        peekArray <$> (fromIntegral <$> peek sizePtr) <*> peek arrayPtr
+    addr' <- peek addrPtr
+    free arrayPtr
+    free sizePtr
+    free addrPtr
+    result <- if success
+                 then Right <$> peek insnPtr
+                 else Left <$> csErrno handle
+    return (map fromIntegral bytes', fromIntegral addr', result)
 
 -- get a register's name as a String
 {#fun pure cs_reg_name as csRegName' {`Csh', `Int'} -> `CString'#}

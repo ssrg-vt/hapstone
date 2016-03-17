@@ -33,3 +33,8 @@ stringLookup s
 fromZero :: (Eq a, Num a) => a -> Maybe a
 fromZero 0 = Nothing
 fromZero v = Just v
+
+peekMaybe :: Storable a => Ptr a -> IO (Maybe a)
+peekMaybe ptr
+    | ptr == nullPtr = return Nothing
+    | otherwise = Just <$> peek ptr
