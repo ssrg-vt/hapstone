@@ -126,6 +126,7 @@ instance Storable CsSkipdataStruct where
         {#set cs_opt_skipdata->callback#} p (castFunPtr c)
         {#set cs_opt_skipdata->user_data#} p d
 
+-- safely set SKIPDATA options (reset on Nothing)
 csSetSkipdata :: Csh -> Maybe CsSkipdataStruct -> IO CsErr
 csSetSkipdata h Nothing = csOption h CsOptSkipdata CsOptOff
 csSetSkipdata h (Just s) =
@@ -199,16 +200,16 @@ instance Storable CsDetail where
 peekDetail :: CsArch -> Ptr CsDetail -> IO CsDetail
 peekDetail arch p = do
     detail <- peek p
-    let bP = plusPtr p ({#offsetof cs_detail.groups_count#} + 1)
+    let bP = plusPtr p 48
     aI <- case arch of
-            CsArchX86 -> X86 <$> peek (castPtr p)
-            CsArchArm64 -> Arm64 <$> peek (castPtr p)
-            CsArchArm -> Arm <$> peek (castPtr p)
-            CsArchMips -> Mips <$> peek (castPtr p)
-            CsArchPpc -> Ppc <$> peek (castPtr p)
-            CsArchSparc -> Sparc <$> peek (castPtr p)
-            CsArchSysz -> SysZ <$> peek (castPtr p)
-            CsArchXcore -> XCore <$> peek (castPtr p)
+            CsArchX86 -> X86 <$> peek (castPtr bP)
+            CsArchArm64 -> Arm64 <$> peek (castPtr bP)
+            CsArchArm -> Arm <$> peek (castPtr bP)
+            CsArchMips -> Mips <$> peek (castPtr bP)
+            CsArchPpc -> Ppc <$> peek (castPtr bP)
+            CsArchSparc -> Sparc <$> peek (castPtr bP)
+            CsArchSysz -> SysZ <$> peek (castPtr bP)
+            CsArchXcore -> XCore <$> peek (castPtr bP)
     return detail { archInfo = Just aI }
 
 -- instructions
@@ -233,7 +234,8 @@ instance Storable CsInsn where
                peekArray num ptr
         <*> (peekCString (plusPtr p {#offsetof cs_insn->mnemonic#}))
         <*> (peekCString (plusPtr p {#offsetof cs_insn->op_str#}))
-        <*> (castPtr <$> {#get cs_insn->detail#} p >>= peekMaybe)
+        <*> return Nothing
+        --(castPtr <$> {#get cs_insn->detail#} p >>= peekMaybe)
     poke p (CsInsn i a b m o d) = do
         {#set cs_insn->id#} p (fromIntegral i)
         {#set cs_insn->address#} p (fromIntegral a)
@@ -252,6 +254,17 @@ instance Storable CsInsn where
           Just d' ->  do csDetailPtr <- malloc
                          poke csDetailPtr d'
                          {#set cs_insn->detail#} p (castPtr csDetailPtr)
+
+-- an arch-sensitive peek for cs_insn 
+peekWithArch :: CsArch -> Ptr CsInsn -> IO CsInsn
+peekWithArch arch p = do
+    insn <- peek p
+    bP <- castPtr <$> {#get cs_insn->detail#} p
+    if bP /= nullPtr
+       then do
+           det <- peekDetail arch bP
+           return insn { detail = Just det }
+       else return insn
 
 -- our own port of the CS_INSN_OFFSET macro
 csInsnOffset :: Ptr CsInsn -> Int -> Int

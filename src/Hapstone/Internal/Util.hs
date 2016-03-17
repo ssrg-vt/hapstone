@@ -34,7 +34,8 @@ fromZero :: (Eq a, Num a) => a -> Maybe a
 fromZero 0 = Nothing
 fromZero v = Just v
 
-peekMaybe :: Storable a => Ptr a -> IO (Maybe a)
-peekMaybe ptr
+-- peek if given pointer is not NULL
+peekFunMaybe :: Storable a => (Ptr a -> IO a) -> Ptr a -> IO (Maybe a)
+peekFunMaybe peekFun ptr
     | ptr == nullPtr = return Nothing
-    | otherwise = Just <$> peek ptr
+    | otherwise = Just <$> peekFun ptr
