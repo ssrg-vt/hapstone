@@ -5,6 +5,7 @@ import Foreign.C.Types
 
 import Data.List (dropWhileEnd)
 
+import Hapstone.Internal.Util
 import Hapstone.Internal.X86
 
 import Test.QuickCheck

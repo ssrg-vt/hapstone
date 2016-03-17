@@ -15,6 +15,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Hapstone.Internal.Capstone,
+                       Hapstone.Internal.Util,
                        Hapstone.Internal.Arm64,
                        Hapstone.Internal.Arm,
                        Hapstone.Internal.Mips,
