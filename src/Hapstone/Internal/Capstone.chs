@@ -202,14 +202,14 @@ peekDetail arch p = do
     detail <- peek p
     let bP = plusPtr p 48
     aI <- case arch of
-            CsArchX86 -> X86 <$> peek (castPtr bP)
-            CsArchArm64 -> Arm64 <$> peek (castPtr bP)
-            CsArchArm -> Arm <$> peek (castPtr bP)
-            CsArchMips -> Mips <$> peek (castPtr bP)
-            CsArchPpc -> Ppc <$> peek (castPtr bP)
-            CsArchSparc -> Sparc <$> peek (castPtr bP)
-            CsArchSysz -> SysZ <$> peek (castPtr bP)
-            CsArchXcore -> XCore <$> peek (castPtr bP)
+            CsArchX86 -> X86 <$> peek bP
+            CsArchArm64 -> Arm64 <$> peek bP
+            CsArchArm -> Arm <$> peek bP
+            CsArchMips -> Mips <$> peek bP
+            CsArchPpc -> Ppc <$> peek bP
+            CsArchSparc -> Sparc <$> peek bP
+            CsArchSysz -> SysZ <$> peek bP
+            CsArchXcore -> XCore <$> peek bP
     return detail { archInfo = Just aI }
 
 -- instructions
