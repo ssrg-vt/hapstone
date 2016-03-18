@@ -10,6 +10,7 @@ module Hapstone.Internal.Capstone
     , CsGroup(..)
     , CsSkipdataCallback
     , CsSkipdataStruct(..)
+    , csSetSkipdata
     , CsDetail(..)
     , peekDetail
     , CsInsn(..)
@@ -60,7 +61,7 @@ few drafts should be easy to write, however.
 
 {#context lib = "capstone"#}
 
-import Control.Monad (join)
+import Control.Monad (join, (>=>))
 
 import Foreign
 import Foreign.C.Types
@@ -290,7 +291,9 @@ csSupport = csSupport' . fromIntegral . fromEnum
     {`CsArch', combine `[CsMode]', alloca- `Csh' peek*} -> `CsErr'#}
 
 -- close a handle obtained by cs_open/csOpen
-{#fun cs_close as ^ {id `Ptr Csh'} -> `CsErr'#}
+{#fun cs_close as csClose' {id `Ptr Csh'} -> `CsErr'#}
+csClose :: Csh -> IO CsErr
+csClose = new >=> csClose'
 
 -- set an option on a handle
 {#fun cs_option as ^ `Enum a' =>
@@ -300,7 +303,7 @@ csSupport = csSupport' . fromIntegral . fromEnum
 {#fun cs_errno as ^ {`Csh'} -> `CsErr'#}
 
 -- get the description of an error
-{#fun cs_strerror as ^ {`CsErr'} -> `String'#}
+{#fun pure cs_strerror as ^ {`CsErr'} -> `String'#}
 
 -- disassemble a buffer
 foreign import ccall "capstone/capstone.h cs_disasm"
@@ -342,12 +345,9 @@ csDisasmIter :: Csh -> [Word8] -> Word64
              -> IO ([Word8], Word64, Either CsErr CsInsn)
 csDisasmIter handle bytes addr = do
     array <- newArray (map fromIntegral bytes) :: IO (Ptr CUChar)
-    arrayPtr <- malloc :: IO (Ptr (Ptr CUChar))
-    poke arrayPtr array
-    sizePtr <- malloc :: IO (Ptr CSize)
-    poke sizePtr (fromIntegral $ length bytes)
-    addrPtr <- malloc :: IO (Ptr CULong)
-    poke addrPtr (fromIntegral addr)
+    arrayPtr <- new array
+    sizePtr <- new . fromIntegral $ length bytes
+    addrPtr <- new $ fromIntegral addr
     insnPtr <- csMalloc handle
     success <- csDisasmIter' handle arrayPtr sizePtr addrPtr insnPtr
     bytes' <- join $
