@@ -68,7 +68,7 @@ peekWithArchSpec = describe "Storable CsInsn" $ do
 
 csInsnOffsetSpec :: Spec
 csInsnOffsetSpec = describe "csInsnOffset" $ do
-    it "behaves correctly (sums match)" pending
+    it "behaves correctly (sums match)" $ pending
 
 csDisasmSpec :: Spec
 csDisasmSpec = describe "csDisasm" $ do

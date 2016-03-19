@@ -66,7 +66,8 @@ import Control.Monad (join, (>=>))
 
 import Foreign
 import Foreign.C.Types
-import Foreign.C.String (CString, peekCString, newCString)
+import Foreign.C.String ( CString, peekCString
+                        , newCString, castCharToCChar, castCCharToChar)
 import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr
 
@@ -242,8 +243,10 @@ instance Storable CsInsn where
         <*> do num <- fromIntegral <$> {#get cs_insn->size#} p
                let ptr = plusPtr p {#offsetof cs_insn->bytes#}
                peekArray num ptr
-        <*> (peekCString (plusPtr p {#offsetof cs_insn->mnemonic#}))
-        <*> (peekCString (plusPtr p {#offsetof cs_insn->op_str#}))
+        <*> ((map castCCharToChar . takeWhile (/=0)) <$>
+            peekArray 32 (plusPtr p {#offsetof cs_insn->mnemonic#}))
+        <*> ((map castCCharToChar . takeWhile (/=0)) <$>
+            peekArray 160 (plusPtr p {#offsetof cs_insn->op_str#}))
         <*> return Nothing
         --(castPtr <$> {#get cs_insn->detail#} p >>= peekMaybe)
     poke p (CsInsn i a b m o d) = do
@@ -255,10 +258,16 @@ instance Storable CsInsn where
            else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
         if length m >= 32
            then error "mnemonic overflew 32 bytes"
-           else pokeArray (plusPtr p {#offsetof cs_insn.mnemonic#}) m -- FIXME
+           else do pokeArray (plusPtr p {#offsetof cs_insn.mnemonic#})
+                             (map castCharToCChar m)
+                   poke (plusPtr p ({#offsetof cs_insn.mnemonic#} + length m))
+                        (0 :: Word8)
         if length o >= 160
            then error "op_str overflew 160 bytes"
-           else pokeArray (plusPtr p {#offsetof cs_insn.op_str#}) o -- FIXME
+           else do pokeArray (plusPtr p {#offsetof cs_insn.op_str#})
+                             (map castCharToCChar o)
+                   poke (plusPtr p ({#offsetof cs_insn.op_str#} + length o))
+                        (0 :: Word8)
         case d of
           Nothing -> {#set cs_insn->detail#} p nullPtr
           Just d' ->  do csDetailPtr <- malloc

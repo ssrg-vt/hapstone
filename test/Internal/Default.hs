@@ -1,5 +1,7 @@
 module Internal.Default where
 
+import Data.Char (chr)
+
 import Foreign
 import Foreign.C.Types
 
@@ -61,5 +63,6 @@ instance Arbitrary CsDetail where
 
 instance Arbitrary CsInsn where
     arbitrary = CsInsn <$> arbitrary <*> arbitrary <*>
-        (take 16 <$> arbitrary) <*> (take 32 <$> arbitrary) <*>
-        (take 160 <$> arbitrary) <*> pure Nothing
+        (take 16 <$> arbitrary) <*>
+        (take 31 <$> listOf (chr <$> elements [1..255])) <*>
+        (take 159 <$> listOf(chr <$> elements [1..255])) <*> pure Nothing
