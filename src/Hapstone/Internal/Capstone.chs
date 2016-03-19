@@ -11,6 +11,7 @@ module Hapstone.Internal.Capstone
     , CsSkipdataCallback
     , CsSkipdataStruct(..)
     , csSetSkipdata
+    , ArchInfo(..)
     , CsDetail(..)
     , peekDetail
     , CsInsn(..)
@@ -86,27 +87,34 @@ type Csh = CSize
 {#typedef csh Csh#}
 
 -- supported architectures
-{#enum cs_arch as CsArch {underscoreToCase} deriving (Show)#}
+{#enum cs_arch as CsArch {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 -- support constants
 {#enum define CsSupport
     { CS_SUPPORT_DIET as CsSupportDiet
-    , CS_SUPPORT_X86_REDUCE as CsSupportX86Reduce} deriving (Show)#}
+    , CS_SUPPORT_X86_REDUCE as CsSupportX86Reduce}
+    deriving (Show, Eq, Bounded)#}
 
 -- work modes
-{#enum cs_mode as CsMode {underscoreToCase} deriving (Show)#}
+{#enum cs_mode as CsMode {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 -- TODO: we will skip user defined dynamic memory routines for now
 
 -- options are, interestingly, represented by different types
-{#enum cs_opt_type as CsOption {underscoreToCase} deriving (Show)#}
-{#enum cs_opt_value as CsOptionState {underscoreToCase} deriving (Show)#}
+{#enum cs_opt_type as CsOption {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+{#enum cs_opt_value as CsOptionState {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 -- arch-uniting operand type
-{#enum cs_op_type as CsOperand {underscoreToCase} deriving (Show)#}
+{#enum cs_op_type as CsOperand {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 -- arch-uniting instruction group type
-{#enum cs_group_type as CsGroup {underscoreToCase} deriving (Show)#}
+{#enum cs_group_type as CsGroup {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 -- callback type for user-defined SKIPDATA work
 type CsSkipdataCallback =
@@ -114,6 +122,7 @@ type CsSkipdataCallback =
 
 -- user-defined SKIPDATA setup
 data CsSkipdataStruct = CsSkipdataStruct String CsSkipdataCallback (Ptr ())
+    deriving (Show, Eq)
 
 instance Storable CsSkipdataStruct where
     sizeOf _ = {#sizeof cs_opt_skipdata#}
@@ -143,7 +152,7 @@ data ArchInfo
     | Sparc Sparc.CsSparc
     | SysZ SystemZ.CsSysZ
     | XCore XCore.CsXCore
-    deriving Show
+    deriving (Show, Eq)
 
 -- instruction information
 data CsDetail = CsDetail
@@ -151,7 +160,7 @@ data CsDetail = CsDetail
     , regsWrite :: [Word8]
     , groups :: [Word8]
     , archInfo :: Maybe ArchInfo
-    } deriving Show
+    } deriving (Show, Eq)
 
 -- the union holding architecture-specific info is not tagged. Thus, we have
 -- no way to determine what kind of data is stored in it without resorting to
@@ -159,8 +168,8 @@ data CsDetail = CsDetail
 -- peek-inmplementation does not get architecture information, use peekDetail
 -- for that.
 instance Storable CsDetail where
-    sizeOf _ = {#sizeof cs_detail#}
-    alignment _ = {#alignof cs_detail#}
+    sizeOf _ = 1528
+    alignment _ = 8
     peek p = CsDetail
         <$> do num <- fromIntegral <$> {#get cs_detail->regs_read_count#} p
                let ptr = plusPtr p {#offsetof cs_detail.regs_read#}
@@ -221,7 +230,7 @@ data CsInsn = CsInsn
     , mnemonic :: String
     , opStr :: String
     , detail :: Maybe CsDetail
-    } deriving Show
+    } deriving (Show, Eq)
 
 -- The untagged-union-problem propagates here as well
 instance Storable CsInsn where
@@ -246,10 +255,10 @@ instance Storable CsInsn where
            else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
         if length m >= 32
            then error "mnemonic overflew 32 bytes"
-           else pokeArray (plusPtr p {#offsetof cs_insn.mnemonic#}) m
+           else pokeArray (plusPtr p {#offsetof cs_insn.mnemonic#}) m -- FIXME
         if length o >= 160
            then error "op_str overflew 160 bytes"
-           else pokeArray (plusPtr p {#offsetof cs_insn.op_str#}) o
+           else pokeArray (plusPtr p {#offsetof cs_insn.op_str#}) o -- FIXME
         case d of
           Nothing -> {#set cs_insn->detail#} p nullPtr
           Just d' ->  do csDetailPtr <- malloc
@@ -274,7 +283,8 @@ csInsnOffset p n = unsafePerformIO $
     where getAddr p = fromIntegral <$> {#get cs_insn->address#} p
 
 -- possible error conditions
-{#enum cs_err as CsErr {underscoreToCase} deriving (Show)#}
+{#enum cs_err as CsErr {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
 
 -- get the library version
 {#fun pure cs_version as ^

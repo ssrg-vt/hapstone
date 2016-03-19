@@ -49,7 +49,9 @@ test-suite hapstone-test
                        Internal.X86.StorableSpec,
                        Internal.X86.Default,
                        Internal.XCore.StorableSpec,
-                       Internal.XCore.Default
+                       Internal.XCore.Default,
+                       Internal.CapstoneSpec,
+                       Internal.Default
   build-depends:       base,
                        hapstone,
                        hspec,

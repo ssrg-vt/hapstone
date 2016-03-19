@@ -8,6 +8,8 @@ import Test.QuickCheck
 
 import Hapstone.Internal.Capstone
 
+import Internal.Default
+
 -- | main spec
 spec :: Spec
 spec = describe "Hapstone.Internal.Capstone" $ do
@@ -23,9 +25,12 @@ spec = describe "Hapstone.Internal.Capstone" $ do
 
 csSkipdataStructStorableSpec :: Spec
 csSkipdataStructStorableSpec = describe "Storable CsSkipdataStruct" $ do
-    it "has a memory layout we can manage" pending
-    it "has matching peek- and poke-implementations" pending
-    it "parses correctly" pending
+    it "is a packed struct" $ 
+        sizeOf (undefined :: CsSkipdataStruct) == 3 * sizeOf (0 :: WordPtr)
+    it "has matching peek- and poke-implementations" $ property $
+        \s@CsSkipdataStruct{} ->
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
+    it "parses correctly" $ pendingWith "use a binary string generated"
 
 csSetSkipdataSpec :: Spec
 csSetSkipdataSpec = describe "csSetSkipdata" $ do
@@ -35,9 +40,12 @@ csSetSkipdataSpec = describe "csSetSkipdata" $ do
 
 csDetailStorableSpec :: Spec
 csDetailStorableSpec = describe "Storable CsDetail" $ do
-    it "has a memory layout we can manage" pending
-    it "has matching peek- and poke-implementations" pending
-    it "parses correctly" pending
+    it "has a memory layout we can manage" $
+        sizeOf (undefined :: CsDetail) == 43 + 5 + 1480
+    it "has matching peek- and poke-implementations with no arch specifics" $
+        property $ \s@CsDetail{} ->
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
+    it "parses correctly" $ pendingWith "use a binary string generated"
 
 peekDetailSpec :: Spec
 peekDetailSpec = describe "peekDetail" $ do
@@ -45,9 +53,14 @@ peekDetailSpec = describe "peekDetail" $ do
 
 csInsnStorableSpec :: Spec
 csInsnStorableSpec = describe "Storable CsInsn" $ do
-    it "has a memory layout we can manage" pending
-    it "has matching peek- and poke-implementations" pending
-    it "parses correctly" pending
+    it "has a memory layout we can manage" $
+        sizeOf (undefined :: CsInsn) ==
+            4 + 4 + 8 + 2 + 208 + sizeOf nullPtr +
+                if sizeOf nullPtr == 4 then 2 else 6 -- pointer sizes
+    it "has matching peek- and poke-implementations with no detail" $
+        property $ \s@CsInsn{} ->
+            alloca (\p -> poke p s >> peek p) `shouldReturn` s
+    it "parses correctly" $ pendingWith "use a binary string generated"
 
 peekWithArchSpec :: Spec
 peekWithArchSpec = describe "Storable CsInsn" $ do
