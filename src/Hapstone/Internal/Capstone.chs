@@ -15,6 +15,8 @@ module Hapstone.Internal.Capstone
     , CsDetail(..)
     , peekDetail
     , CsInsn(..)
+    , peekArch
+    , peekArrayArch
     , csInsnOffset
     , CsErr(..)
     , csSupport
@@ -275,8 +277,8 @@ instance Storable CsInsn where
                          {#set cs_insn->detail#} p (castPtr csDetailPtr)
 
 -- an arch-sensitive peek for cs_insn 
-peekWithArch :: CsArch -> Ptr CsInsn -> IO CsInsn
-peekWithArch arch p = do
+peekArch :: CsArch -> Ptr CsInsn -> IO CsInsn
+peekArch arch p = do
     insn <- peek p
     bP <- castPtr <$> {#get cs_insn->detail#} p
     if bP /= nullPtr
@@ -284,6 +286,20 @@ peekWithArch arch p = do
            det <- peekDetail arch bP
            return insn { detail = Just det }
        else return insn
+
+-- an arch-sensitive peekElemOff for cs_insn
+peekElemOffArch :: CsArch -> Ptr CsInsn -> Int -> IO CsInsn
+peekElemOffArch arch ptr off =
+    peekArch arch (plusPtr ptr (off * sizeOf (undefined :: CsInsn)))
+
+-- an arch-sensitive peekArray for cs_insn
+peekArrayArch :: CsArch -> Int -> Ptr CsInsn -> IO [CsInsn]
+peekArrayArch arch num ptr
+    | num <= 0 = return []
+    | otherwise = f (num-1) []
+  where
+    f 0 acc = do e <- peekElemOffArch arch ptr 0; return (e:acc)
+    f n acc = do e <- peekElemOffArch arch ptr n; f (n-1) (e:acc)
 
 -- our own port of the CS_INSN_OFFSET macro
 csInsnOffset :: Ptr CsInsn -> Int -> Int
@@ -333,8 +349,8 @@ foreign import ccall "capstone/capstone.h cs_disasm"
               -> Ptr (Ptr CsInsn) -- where to put the instructions
               -> IO CSize -- number of succesfully disassembled instructions
 
-csDisasm :: Csh -> [Word8] -> Word64 -> Int -> IO [CsInsn]
-csDisasm handle bytes addr num = do
+csDisasm :: CsArch -> Csh -> [Word8] -> Word64 -> Int -> IO [CsInsn]
+csDisasm arch handle bytes addr num = do
     array <- newArray $ map fromIntegral bytes
     passedPtr <- malloc :: IO (Ptr (Ptr CsInsn))
     resNum <- fromIntegral <$> csDisasm' handle array
@@ -342,7 +358,7 @@ csDisasm handle bytes addr num = do
         (fromIntegral num) passedPtr
     resPtr <- peek passedPtr
     free passedPtr
-    res <- peekArray resNum resPtr
+    res <- peekArrayArch arch resNum resPtr
     csFree resPtr resNum
     return res
 
