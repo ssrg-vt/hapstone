@@ -142,8 +142,9 @@ instance Storable CsSkipdataStruct where
 -- safely set SKIPDATA options (reset on Nothing)
 csSetSkipdata :: Csh -> Maybe CsSkipdataStruct -> IO CsErr
 csSetSkipdata h Nothing = csOption h CsOptSkipdata CsOptOff
-csSetSkipdata h (Just s) =
-    with s (csOption h CsOptSkipdata . fromIntegral . ptrToWordPtr)
+csSetSkipdata h (Just s) = do
+    csOption h CsOptSkipdata CsOptOn
+    with s (csOption h CsOptSkipdataSetup . fromIntegral . ptrToWordPtr)
 
 -- architecture specific information
 data ArchInfo

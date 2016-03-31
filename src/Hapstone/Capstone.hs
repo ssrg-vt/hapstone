@@ -1,14 +1,17 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, ForeignFunctionInterface, RankNTypes #-}
 module Hapstone.Capstone 
     ( disasmIO
     , disasmSimpleIO
     , Disassembler(..)
     , defaultSkipdataStruct
     , defaultAction
+    , mkCallback
     ) where
 
 import Data.Word
 
+import Foreign
+import Foreign.C.Types
 import Foreign.Ptr
 
 import Hapstone.Internal.Capstone
@@ -16,6 +19,24 @@ import Hapstone.Internal.Capstone
 -- | default setup for skipdata
 defaultSkipdataStruct :: CsSkipdataStruct
 defaultSkipdataStruct = CsSkipdataStruct ".db" nullFunPtr nullPtr
+
+foreign import ccall "wrapper"
+  allocCallback :: (Ptr Word8 -> CSize -> CSize -> Ptr () -> IO CSize)
+                -> IO CsSkipdataCallback
+
+-- | wrap a relatively safe function to get a callback
+-- "safe" in this context means that the buffer remains unmodified
+mkCallback :: Storable a => (Storable a => ([Word8], [Word8]) -> a -> IO CSize)
+           -> IO CsSkipdataCallback
+mkCallback = allocCallback . mkCallback'
+
+mkCallback' :: Storable a
+           => (Storable a => ([Word8], [Word8]) -> a -> IO CSize)
+           -> Ptr Word8 -> CSize -> CSize -> Ptr () -> IO CSize
+mkCallback' func ptr size off user_data = do
+    buf <- splitAt (fromIntegral off) <$> peekArray (fromIntegral size) ptr
+    arg <- peek (castPtr user_data)
+    func buf arg
 
 -- | default action to run on each instruction
 defaultAction :: Csh -> CsInsn -> IO ()
