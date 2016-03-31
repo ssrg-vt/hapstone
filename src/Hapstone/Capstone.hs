@@ -40,9 +40,11 @@ disasmSimpleIO = fmap (fmap (map fst)) . disasmIO
 -- | run a Disassembler
 disasmIO :: Disassembler a -> IO (Either CsErr [(CsInsn, a)])
 disasmIO d@Disassembler{..} = do (err, handle) <- csOpen arch modes
-                                 case err of
-                                   CsErrOk -> disasmIOWithHandle handle
-                                   _ -> return $ Left err
+                                 res <- case err of
+                                          CsErrOk -> disasmIOWithHandle handle
+                                          _ -> return $ Left err
+                                 csClose handle
+                                 return res
     where disasmIOWithHandle handle = do
               err <- if detail
                         then csOption handle CsOptDetail CsOptOn
