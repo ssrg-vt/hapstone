@@ -1,4 +1,18 @@
 {-# LANGUAGE RecordWildCards, ForeignFunctionInterface, RankNTypes #-}
+{-|
+Module      : Hapstone.Capstone
+Description : a high-level API to hide all the details of using C-style capstone
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module wraps all the complex and unsafe details of the capstone API to
+provide a simple interface to a disassembler, while retaining a reasonable level
+of versatility.
+
+TODO: write a proper user guide here.
+-}
 module Hapstone.Capstone 
     ( disasmIO
     , disasmSimpleIO
@@ -16,7 +30,7 @@ import Foreign.Ptr
 
 import Hapstone.Internal.Capstone
 
--- | default setup for skipdata
+-- | default setup for skipdata: ".db" string and no callback
 defaultSkipdataStruct :: CsSkipdataStruct
 defaultSkipdataStruct = CsSkipdataStruct ".db" nullFunPtr nullPtr
 
@@ -38,7 +52,7 @@ mkCallback' func ptr size off user_data = do
     arg <- peek (castPtr user_data)
     func buf arg
 
--- | default action to run on each instruction
+-- | default action to run on each instruction (does nothing)
 defaultAction :: Csh -> CsInsn -> IO ()
 defaultAction _ _ = return ()
 
@@ -58,7 +72,7 @@ data Disassembler a = Disassembler
 disasmSimpleIO :: Disassembler a -> IO (Either CsErr [CsInsn])
 disasmSimpleIO = fmap (fmap (map fst)) . disasmIO
 
--- | run a Disassembler
+-- | run a Disassembler, keeping the results of the custom action
 disasmIO :: Disassembler a -> IO (Either CsErr [(CsInsn, a)])
 disasmIO d@Disassembler{..} = do (err, handle) <- csOpen arch modes
                                  res <- case err of

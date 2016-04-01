@@ -1,4 +1,23 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.SystemZ
+Description : SystemZ architecture header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains SystemZ specific datatypes and their respective Storable
+instances. Most of the types are used internally and can be looked up here.
+Some of them are currently unused, as the headers only define them as symbolic
+constants whose type is never used explicitly, which poses a problem for a
+memory-safe port to the Haskell language, this is about to get fixed in a
+future version.
+
+Apart from that, because the module is generated using C2HS, some of the
+documentation is misplaced or rendered incorrectly, so if in doubt, read the
+source file.
+-}
 module Hapstone.Internal.SystemZ where
 
 #include <capstone/systemz.h>
@@ -8,16 +27,21 @@ module Hapstone.Internal.SystemZ where
 import Foreign
 import Foreign.C.Types
 
--- enumerations
+-- | SystemZ condition code
 {#enum sysz_cc as SysZCc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | operand type for instruction's operands
 {#enum sysz_op_type as SysZOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- memory access operands
-data SysZOpMemStruct = SysZOpMemStruct Word8 Word8 Word64 Int64
-    deriving (Show, Eq)
+-- | memory access operands
+data SysZOpMemStruct = SysZOpMemStruct
+    { base :: Word8 -- ^ base register
+    , index :: Word8 -- ^ index register
+    , len :: Word64 -- ^ BDLAddr operand
+    , disp :: Int64 -- ^ displacement/offset value
+    } deriving (Show, Eq)
 
 instance Storable SysZOpMemStruct where
     sizeOf _ = {#sizeof sysz_op_mem#}
@@ -33,13 +57,14 @@ instance Storable SysZOpMemStruct where
         {#set sysz_op_mem->length#} p (fromIntegral l)
         {#set sysz_op_mem->disp#} p (fromIntegral d)
 
--- operands
+-- | instruction operand
 data CsSysZOp
-    = Reg Word32
-    | Imm Int64
-    | Mem SysZOpMemStruct
-    | AcReg
-    | Undefined
+    = Reg Word32 -- ^ register value for 'SyszOpReg' operands
+    | Imm Int64 -- ^ immediate value for 'SyszOpImm' operands
+    | Mem SysZOpMemStruct -- ^ base/index/length/disp value for 'SyszOpMem'
+                          -- operands
+    | AcReg -- ^ 'SyszOpAcreg' operand
+    | Undefined -- ^ invalid operand value, for 'Arm64OpInvalid' operand
     deriving (Show, Eq)
 
 instance Storable CsSysZOp where
@@ -70,10 +95,13 @@ instance Storable CsSysZOp where
           AcReg -> setType SyszOpAcreg
           _ -> setType SyszOpInvalid
 
--- instructions
+-- | instruction datatype
 data CsSysZ = CsSysZ
-    { cc :: SysZCc
-    , operands :: [CsSysZOp]
+    { cc :: SysZCc -- ^ condition code
+    , operands :: [CsSysZOp] -- operand list of this instruction, *MUST* have
+                             -- <= 6 elements, else you'll get a runtime error
+                             -- when you (implicitly) try to write it to memory
+                             -- via it's Storable instance
     } deriving (Show, Eq)
 
 instance Storable CsSysZ where
@@ -91,10 +119,12 @@ instance Storable CsSysZ where
            then error "operands overflew 6 elements"
            else pokeArray (plusPtr p {#offsetof cs_sysz->operands#}) o
 
--- more enumerations
+-- | SystemZ registers
 {#enum sysz_reg as SysZReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | SystemZ instructions
 {#enum sysz_insn as SysZInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | SystemZ instruction groups
 {#enum sysz_insn_group as SysZInsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

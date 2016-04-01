@@ -1,4 +1,23 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.Mips
+Description : MIPS architecture header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains MIPS specific datatypes and their respective Storable
+instances. Most of the types are used internally and can be looked up here.
+Some of them are currently unused, as the headers only define them as symbolic
+constants whose type is never used explicitly, which poses a problem for a
+memory-safe port to the Haskell language, this is about to get fixed in a
+future version.
+
+Apart from that, because the module is generated using C2HS, some of the
+documentation is misplaced or rendered incorrectly, so if in doubt, read the
+source file.
+-}
 module Hapstone.Internal.Mips where
 
 #include <capstone/mips.h>
@@ -8,13 +27,16 @@ module Hapstone.Internal.Mips where
 import Foreign
 import Foreign.C.Types
 
--- enumeration(s)
+-- | operand type for instruction's operands
 {#enum mips_op_type as MipsOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- memory access operands
-data MipsOpMemStruct = MipsOpMemStruct Word32 Int64
-   deriving (Show, Eq)
+-- | memory access operands
+-- associated with 'MipsOpMem' operand type
+data MipsOpMemStruct = MipsOpMemStruct 
+    { base :: Word32 -- ^ base register
+    , disp ::  Int64 -- ^ displacement/offset value
+    } deriving (Show, Eq)
 
 instance Storable MipsOpMemStruct where
     sizeOf _ = {#sizeof mips_op_mem#}
@@ -26,12 +48,12 @@ instance Storable MipsOpMemStruct where
         {#set mips_op_mem->base#} p (fromIntegral b)
         {#set mips_op_mem->disp#} p(fromIntegral d)
 
--- operands
+-- | instruction operand
 data CsMipsOp
-    = Reg Word32
-    | Imm Int64
-    | Mem MipsOpMemStruct
-    | Undefined
+    = Reg Word32 -- ^ register value for 'MipsOpReg' operands
+    | Imm Int64 -- ^ immediate value for 'MipsOpImm' operands
+    | Mem MipsOpMemStruct -- ^ base,disp value for 'MipsOpMem' operands
+    | Undefined -- ^ invalid operand value, for MipsOpInvalid operand
     deriving (Show, Eq)
 
 instance Storable CsMipsOp where
@@ -60,8 +82,13 @@ instance Storable CsMipsOp where
               setType MipsOpMem
           _ -> setType MipsOpInvalid
 
--- instructions
-newtype CsMips = CsMips [CsMipsOp] deriving (Show, Eq)
+-- | instruction datatype
+newtype CsMips = CsMips [CsMipsOp] -- ^ operand list for this instruction,
+                                   -- *MUST* have <= 8 elements, else you'll
+                                   -- get a runtime error when you (implicitly)
+                                   -- try to write it to memory via it's
+                                   -- Storable instance
+    deriving (Show, Eq)
 
 instance Storable CsMips where
     sizeOf _ = 200
@@ -76,10 +103,12 @@ instance Storable CsMips where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_mips->operands#}) o
 
--- more enumerations
+-- | MIPS registers
 {#enum mips_reg as MipsReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | MIPS instructions
 {#enum mips_insn as MipsInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | MIPS instruction groups
 {#enum mips_insn_group as MipsInsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

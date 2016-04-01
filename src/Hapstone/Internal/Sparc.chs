@@ -1,4 +1,23 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.Sparc
+Description : SPARC architecture header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains SPARC specific datatypes and their respective Storable
+instances. Most of the types are used internally and can be looked up here.
+Some of them are currently unused, as the headers only define them as symbolic
+constants whose type is never used explicitly, which poses a problem for a
+memory-safe port to the Haskell language, this is about to get fixed in a
+future version.
+
+Apart from that, because the module is generated using C2HS, some of the
+documentation is misplaced or rendered incorrectly, so if in doubt, read the
+source file.
+-}
 module Hapstone.Internal.Sparc where
 
 #include <capstone/sparc.h>
@@ -8,18 +27,24 @@ module Hapstone.Internal.Sparc where
 import Foreign
 import Foreign.C.Types
 
--- enumerations
+-- | SPARC condition codes
 {#enum sparc_cc as SparcCc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | SPARC branch hint
 {#enum sparc_hint as SparcHint {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | operand type for instruction's operands
 {#enum sparc_op_type as SparcOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- memory access operands
-data SparcOpMemStruct = SparcOpMemStruct Word8 Word8 Int32
-    deriving (Show, Eq)
+-- | memory access operand
+-- associated with 'SparcOpMem' operand type
+data SparcOpMemStruct = SparcOpMemStruct
+    { base :: Word8 -- ^ base register
+    , index :: Word8 -- ^ index register
+    , disp :: Int32 -- ^ displacement/offset value
+    } deriving (Show, Eq)
 
 instance Storable SparcOpMemStruct where
     sizeOf _ = {#sizeof sparc_op_mem#}
@@ -33,12 +58,12 @@ instance Storable SparcOpMemStruct where
         {#set sparc_op_mem->index#} p (fromIntegral i)
         {#set sparc_op_mem->disp#} p (fromIntegral d)
 
--- operands
+-- | instruction operand
 data CsSparcOp
-    = Reg Word32
-    | Imm Int32
-    | Mem SparcOpMemStruct
-    | Undefined
+    = Reg Word32 -- ^ register value for 'SparcOpReg' operands
+    | Imm Int32 -- ^ immediate value for 'SparcOpImm' operands
+    | Mem SparcOpMemStruct -- ^ base,index,disp value for 'SparcOpMem' operands
+    | Undefined -- ^ invalid operand value, for 'SparcOpInvalid' operand
     deriving (Show, Eq)
 
 instance Storable CsSparcOp where
@@ -67,11 +92,14 @@ instance Storable CsSparcOp where
               setType SparcOpMem
           _ -> setType SparcOpInvalid
 
--- instructions
+-- | instruction datatype
 data CsSparc = CsSparc
-    { cc :: SparcCc
-    , hint :: SparcHint
-    , operands :: [CsSparcOp]
+    { cc :: SparcCc -- ^ condition code
+    , hint :: SparcHint -- ^ branch hint
+    , operands :: [CsSparcOp] -- ^ operand list of this instruction, *MUST*
+                              -- have <= 4 elements, else you'll get a runtime
+                              -- error when you (implicitly) try to write it to
+                              -- memory via it's Storable instance
     } deriving (Show, Eq)
 
 instance Storable CsSparc where
@@ -91,10 +119,12 @@ instance Storable CsSparc where
            then error "operands overflew 4 elements"
            else pokeArray (plusPtr p {#offsetof cs_sparc->operands#}) o
 
--- more enumerations
+-- | SPARC registers
 {#enum sparc_reg as SparcReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | SPARC instructions
 {#enum sparc_insn as SparcInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | SPARC instruction groups
 {#enum sparc_insn_group as SparcInsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

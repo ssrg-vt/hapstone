@@ -1,4 +1,23 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.XCore
+Description : XCore architecture header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains XCore specific datatypes and their respective Storable
+instances. Most of the types are used internally and can be looked up here.
+Some of them are currently unused, as the headers only define them as symbolic
+constants whose type is never used explicitly, which poses a problem for a
+memory-safe port to the Haskell language, this is about to get fixed in a
+future version.
+
+Apart from that, because the module is generated using C2HS, some of the
+documentation is misplaced or rendered incorrectly, so if in doubt, read the
+source file.
+-}
 module Hapstone.Internal.XCore where
 
 #include <capstone/xcore.h>
@@ -8,13 +27,18 @@ module Hapstone.Internal.XCore where
 import Foreign
 import Foreign.C.Types
 
--- enumeration(s)
+-- | operand type for instruction's operands
 {#enum xcore_op_type as XCoreOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- memory access operands
-data XCoreOpMemStruct = XCoreOpMemStruct Word8 Word8 Int32 Int32
-    deriving (Show, Eq)
+-- | memory access operands
+-- associated with 'XcoreOpMem' operand type
+data XCoreOpMemStruct = XCoreOpMemStruct
+    { base :: Word8 -- ^ base register
+    , index :: Word8 -- ^ index register
+    , disp :: Int32 -- ^ displacement/offset value
+    , direct :: Int32 -- ^ +1: forward, -1: backward
+    } deriving (Show, Eq)
 
 instance Storable XCoreOpMemStruct where
     sizeOf _ = {#sizeof xcore_op_mem#}
@@ -30,12 +54,13 @@ instance Storable XCoreOpMemStruct where
         {#set xcore_op_mem->disp#} p (fromIntegral disp)
         {#set xcore_op_mem->direct#} p (fromIntegral dir)
 
--- operands
+-- | instruction operand
 data CsXCoreOp
-    = Reg Word32
-    | Imm Int32
-    | Mem XCoreOpMemStruct
-    | Undefined
+    = Reg Word32 -- ^ register value for 'XcoreOpReg' operands
+    | Imm Int32 -- ^ immediate value for 'XcoreOpImm' operands
+    | Mem XCoreOpMemStruct -- ^ base/index/disp/direct value for 'XcoreOpMem'
+                           -- operands
+    | Undefined -- ^ invalid operand value, for 'XcoreOpInvalid' operand
     deriving (Show, Eq)
 
 instance Storable CsXCoreOp where
@@ -58,8 +83,12 @@ instance Storable CsXCoreOp where
           Mem m -> poke bP m >> setType XcoreOpMem
           _ -> setType XcoreOpInvalid
 
--- instructions
-newtype CsXCore = CsXCore [CsXCoreOp]
+-- | instruction datatype
+newtype CsXCore = CsXCore [CsXCoreOp] -- ^ operand list of this instruction,
+                                      -- *MUST* have <= 8 operands, else you'll
+                                      -- get a runtime error when you
+                                      -- (implicitly) try to write it to memory
+                                      -- via it's Storable instance
     deriving (Show, Eq)
 
 instance Storable CsXCore where
@@ -74,10 +103,12 @@ instance Storable CsXCore where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_xcore->operands#}) o
 
--- more enumerations
+-- | XCore registers
 {#enum xcore_reg as XCoreReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | XCore instructions
 {#enum xcore_insn as XCoreInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | XCore instruction groups
 {#enum xcore_insn_group as XCoreInsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

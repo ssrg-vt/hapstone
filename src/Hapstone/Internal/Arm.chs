@@ -1,4 +1,23 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.Arm
+Description : ARM architecture header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains ARM specific datatypes and their respective Storable
+instances. Most of the types are used internally and can be looked up here.
+Some of them are currently unused, as the headers only define them as symbolic
+constants whose type is never used explicitly, which poses a problem for a
+memory-safe port to the Haskell language, this is about to get fixed in a
+future version.
+
+Apart from that, because the module is generated using C2HS, some of the
+documentation is misplaced or rendered incorrectly, so if in doubt, read the
+source file.
+-}
 module Hapstone.Internal.Arm where
 
 #include <capstone/arm.h>
@@ -8,31 +27,44 @@ module Hapstone.Internal.Arm where
 import Foreign
 import Foreign.C.Types
 
--- enumerations
+-- | ARM shift type
 {#enum arm_shifter as ArmShifter {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | ARM condition code
 {#enum arm_cc as ArmConditionCode {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | system registers
 {#enum arm_sysreg as ArmSysreg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | memory barrier operands (map directly to the 4-bit encoding of the option
+-- field for Memory Barrier operations, when given as an integer)
 {#enum arm_mem_barrier as ArmMemBarrier {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | operand type for instruction's operands
 {#enum arm_op_type as ArmOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | operand type for SETEND instruction
 {#enum arm_setend_type as ArmSetendType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 {#enum arm_cpsmode_type as ArmCpsmodeType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | operand type for SETEND instruction
 {#enum arm_cpsflag_type as ArmCpsflagType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | data type for elements of vector instructions
 {#enum arm_vectordata_type as ArmVectordataType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- memory access operands
-data ArmOpMemStruct = ArmOpMemStruct Word32 Word32 Int32 Int32
-    deriving (Show, Eq)
+-- | memory access operands
+-- associated with 'ArmOpMem' operand type
+data ArmOpMemStruct = ArmOpMemStruct
+    { base :: Word32 -- ^ base register
+    , index :: Word32 -- ^ index register
+    , scale :: Int32 -- ^ scale for index register (1 or -1)
+    , disp :: Int32 -- ^ displacement/offset value
+    } deriving (Show, Eq)
 
 instance Storable ArmOpMemStruct where
     sizeOf _ = {#sizeof arm_op_mem#}
@@ -48,25 +80,26 @@ instance Storable ArmOpMemStruct where
         {#set arm_op_mem->scale#} p (fromIntegral s)
         {#set arm_op_mem->disp#} p (fromIntegral d)
 
--- possible operand types
+-- | possible operand types (corresponding to the tagged union in the C header)
 data CsArmOpValue
-    = Reg Word32
-    | Sysreg Word32
-    | Imm Int32
-    | Cimm Int32
-    | Pimm Int32
-    | Fp Double
-    | Mem ArmOpMemStruct
-    | Setend ArmSetendType
-    | Undefined
+    = Reg Word32 -- ^ register value for 'ArmOpReg' operands
+    | Sysreg Word32 -- ^ register value for 'ArmOpSysreg' operands
+    | Imm Int32 -- ^ immediate value for 'ArmOpImm' operands
+    | Cimm Int32 -- ^ immediate value for 'ArmOpCimm' operands
+    | Pimm Int32 -- ^ immediate value for 'ArmOpPimm' operands
+    | Fp Double -- ^ floating point value for 'ArmOpFp' operands
+    | Mem ArmOpMemStruct -- ^ base,index,scale,disp value for
+                         -- 'ArmOpMem' operands
+    | Setend ArmSetendType -- ^ SETEND instruction's operand type
+    | Undefined -- ^ invalid operand value, for 'ArmOpInvalid' operand
     deriving (Show, Eq)
 
--- operands
+-- | instruction operands
 data CsArmOp = CsArmOp
-    { vectorIndex :: Int32
-    , shift :: (ArmShifter, Word32)
-    , value :: CsArmOpValue
-    , subtracted :: Bool
+    { vectorIndex :: Int32 -- ^ vector index for some vector operands, else -1
+    , shift :: (ArmShifter, Word32) -- ^ shifter type and value
+    , value :: CsArmOpValue -- ^ operand type and value
+    , subtracted :: Bool -- ^ if 'True', operand is subtracted, else added
     } deriving (Show, Eq)
 
 instance Storable CsArmOp where
@@ -126,18 +159,24 @@ instance Storable CsArmOp where
           _ -> setType ArmOpInvalid
         pokeByteOff p 32 (fromBool sub :: Word8) -- subtracted
 
--- instructions
+-- | instruction datatype
 data CsArm = CsArm
-    { usermode :: Bool
-    , vectorSize :: Int32
-    , vectorData :: ArmVectordataType
-    , cpsMode :: ArmCpsmodeType
-    , cpsFlag :: ArmCpsflagType
-    , cc :: ArmConditionCode
-    , updateFlags :: Bool
-    , writeback :: Bool
-    , memBarrier :: ArmMemBarrier
-    , operands :: [CsArmOp]
+    { usermode :: Bool -- ^ usermode registers to be loaded (for LDM/STM
+                       -- instructions)
+    , vectorSize :: Int32 -- ^ scalar size for vector instructions
+    , vectorData :: ArmVectordataType -- ^ data type for elements of vector
+                                      -- instructions
+    , cpsMode :: ArmCpsmodeType -- ^ CPS mode for CPS instructions
+    , cpsFlag :: ArmCpsflagType -- ^ CPS mode for CPS instructions
+    , cc :: ArmConditionCode -- condition code
+    , updateFlags :: Bool -- does this instruction update flags?
+    , writeback :: Bool -- ^ does this instruction request writeback?
+    , memBarrier :: ArmMemBarrier -- ^ options for some memory barrier
+                                  -- instructions
+    , operands :: [CsArmOp] -- ^ operand list of this instruction, *MUST*
+                            -- have <= 36 elements, else you'll get a runtime
+                            -- error when you (implicitly) try to write it to
+                            -- memory via it's Storable instance
     } deriving (Show, Eq)
 
 instance Storable CsArm where
@@ -171,10 +210,12 @@ instance Storable CsArm where
            then error "operands overflew 36 elements"
            else pokeArray (plusPtr p {#offsetof cs_arm->operands#}) o
 
--- more enumerations
+-- | ARM registers
 {#enum arm_reg as ArmReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | ARM instructions
 {#enum arm_insn as ArmInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | ARM instruction groups
 {#enum arm_insn_group as ArmInsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

@@ -1,6 +1,28 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.Capstone
+Description : capstone's API header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains capstone's public API, with the necessary datatypes and
+functions, and some boilerplate to make it usable. Thus, it exposes an IO-based
+interface to capstone, which is a rough 1:1 translation of the capstone C
+header to Haskell. Obviously, it isn't very ideomatic to use, so a higher-level
+API is present in "Hapstone.Capstone". The approach there is to wrap all
+necessary cleanup and initialization and expose an ideomatic (but heavily
+abstracted) interface to capstone.
+
+This module, on the other hand, is intended to be used when performance is more
+critical or greater versatility is needed. This means that the abstractions
+introduced in the C version of the library are still present, but their use has
+been restricted to provide more reasonable levels of safety.
+-}
 module Hapstone.Internal.Capstone 
-    ( Csh
+    ( -- * Datatypes
+      Csh
     , CsArch(..)
     , CsSupport(..)
     , CsMode(..)
@@ -8,15 +30,20 @@ module Hapstone.Internal.Capstone
     , CsOptionState(..)
     , CsOperand(..)
     , CsGroup(..)
+      -- * Skipdata setup
+      -- $skipdata
     , CsSkipdataCallback
     , CsSkipdataStruct(..)
     , csSetSkipdata
+      -- * Instruction representation
     , ArchInfo(..)
+      -- $instructions
     , CsDetail(..)
     , peekDetail
     , CsInsn(..)
     , peekArch
     , peekArrayArch
+      -- * Capstone API
     , csInsnOffset
     , CsErr(..)
     , csSupport
@@ -38,27 +65,6 @@ module Hapstone.Internal.Capstone
     , csOpCount
     , csOpIndex
     ) where
-
-{-
-A few notes on API design
-
-This is just a roughly 1:1 translation of the capstone C headers to Haskell.
-Obviously, it isn't a very pleasant experience to use, so a higher-level API
-is needed. The approach there would be like follows:
-* determine the common workflows with capstone (this is easy)
-* write wrappers around those workflows
-
-The most notorious issues:
-* wrap allocation and deallocation of structs, so that each pure function is
-  a no-op to the runtime's state
-* wrap datatype conversion between architecture specific enumerations and
-  interger types. This is best done via typeclasses or type families.
-* wrap instruction structures to provide better architecture separation
-
-Those should be less straightforward to handle and require some more work, a
-few drafts should be easy to write, however.
-
--}
 
 #include <capstone/capstone.h>
 
@@ -85,45 +91,53 @@ import qualified Hapstone.Internal.XCore as XCore
 
 import System.IO.Unsafe (unsafePerformIO)
 
--- capstone's weird^M^M^M^M^Mopaque handle type
+-- | capstone's weird^M^M^M^M^Mopaque handle type
 type Csh = CSize
 {#typedef csh Csh#}
 
--- supported architectures
+-- | supported architectures
 {#enum cs_arch as CsArch {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- support constants
+-- | support constants
 {#enum define CsSupport
     { CS_SUPPORT_DIET as CsSupportDiet
     , CS_SUPPORT_X86_REDUCE as CsSupportX86Reduce}
     deriving (Show, Eq, Bounded)#}
 
--- work modes
+-- | working modes
 {#enum cs_mode as CsMode {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
 -- TODO: we will skip user defined dynamic memory routines for now
 
--- options are, interestingly, represented by different types
+-- | options are, interestingly, represented by different types: an option
 {#enum cs_opt_type as CsOption {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | ... and a state of an option
 {#enum cs_opt_value as CsOptionState {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- arch-uniting operand type
+-- | arch-uniting operand type
 {#enum cs_op_type as CsOperand {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- arch-uniting instruction group type
+-- | arch-uniting instruction group type
 {#enum cs_group_type as CsGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- callback type for user-defined SKIPDATA work
+-- $skipdata
+-- SKIPDATA is an option supported by the capstone disassembly engine, that
+-- allows to skip data which can't be disassembled and to represent it in form
+-- of pseudo-instructions. The types and functions given here attempt to mirror
+-- capstone's setup of this option, and a more high-level interface is
+-- available in "Hapstone.Capstone".
+
+-- | callback type for user-defined SKIPDATA work
 type CsSkipdataCallback =
     FunPtr (Ptr Word8 -> CSize -> CSize -> Ptr () -> IO CSize)
 
--- user-defined SKIPDATA setup
+-- | user-defined SKIPDATA setup
 data CsSkipdataStruct = CsSkipdataStruct String CsSkipdataCallback (Ptr ())
     deriving (Show, Eq)
 
@@ -139,38 +153,40 @@ instance Storable CsSkipdataStruct where
         {#set cs_opt_skipdata->callback#} p (castFunPtr c)
         {#set cs_opt_skipdata->user_data#} p d
 
--- safely set SKIPDATA options (reset on Nothing)
+-- | safely set SKIPDATA options (reset on Nothing)
 csSetSkipdata :: Csh -> Maybe CsSkipdataStruct -> IO CsErr
 csSetSkipdata h Nothing = csOption h CsOptSkipdata CsOptOff
 csSetSkipdata h (Just s) = do
     csOption h CsOptSkipdata CsOptOn
     with s (csOption h CsOptSkipdataSetup . fromIntegral . ptrToWordPtr)
 
--- architecture specific information
+-- | architecture specific information
 data ArchInfo
-    = X86 X86.CsX86
-    | Arm64 Arm64.CsArm64
-    | Arm Arm.CsArm
-    | Mips Mips.CsMips
-    | Ppc Ppc.CsPpc
-    | Sparc Sparc.CsSparc
-    | SysZ SystemZ.CsSysZ
-    | XCore XCore.CsXCore
+    = X86 X86.CsX86 -- ^ x86 architecture
+    | Arm64 Arm64.CsArm64 -- ^ ARM64 architecture
+    | Arm Arm.CsArm -- ^ ARM architecture
+    | Mips Mips.CsMips -- ^ MIPS architecture
+    | Ppc Ppc.CsPpc -- ^ PPC architecture
+    | Sparc Sparc.CsSparc -- ^ SPARC architecture
+    | SysZ SystemZ.CsSysZ -- ^ SystemZ architecture
+    | XCore XCore.CsXCore -- ^ XCore architecture
     deriving (Show, Eq)
 
--- instruction information
+-- | instruction information
 data CsDetail = CsDetail
-    { regsRead :: [Word8]
-    , regsWrite :: [Word8]
-    , groups :: [Word8]
-    , archInfo :: Maybe ArchInfo
+    { regsRead :: [Word8] -- ^ registers read by this instruction
+    , regsWrite :: [Word8] -- ^ registers written by this instruction
+    , groups :: [Word8] -- ^ instruction groups this instruction belongs to
+    , archInfo :: Maybe ArchInfo -- ^ (optional) architecture-specific info
     } deriving (Show, Eq)
 
--- the union holding architecture-specific info is not tagged. Thus, we have
+-- $instructions
+-- The union holding architecture-specific info is not tagged. Thus, we have
 -- no way to determine what kind of data is stored in it without resorting to
--- some kind of context lookup, as the C code would do. Thus, the
--- peek-inmplementation does not get architecture information, use peekDetail
+-- some kind of context lookup, as the corresponding C code would do. Thus, the
+-- peek implementation does not get architecture information, use peekDetail
 -- for that.
+
 instance Storable CsDetail where
     sizeOf _ = 1528
     alignment _ = 8
@@ -210,7 +226,7 @@ instance Storable CsDetail where
           Just (XCore x) -> poke bP x
           Nothing -> return ()
 
--- an arch-sensitive peek for cs_detail
+-- | an arch-sensitive peek for cs_detail
 peekDetail :: CsArch -> Ptr CsDetail -> IO CsDetail
 peekDetail arch p = do
     detail <- peek p
@@ -226,14 +242,14 @@ peekDetail arch p = do
             CsArchXcore -> XCore <$> peek bP
     return detail { archInfo = Just aI }
 
--- instructions
+-- | instructions
 data CsInsn = CsInsn
-    { insnId :: Word32
-    , address :: Word64
-    , bytes :: [Word8]
-    , mnemonic :: String
-    , opStr :: String
-    , detail :: Maybe CsDetail
+    { insnId :: Word32 -- ^ instruction ID
+    , address :: Word64 -- ^ instruction's address in memory
+    , bytes :: [Word8] -- ^ raw byte representation
+    , mnemonic :: String -- ^ instruction's mnemonic
+    , opStr :: String -- ^ operands
+    , detail :: Maybe CsDetail -- ^ (optional) detailed info
     } deriving (Show, Eq)
 
 -- The untagged-union-problem propagates here as well
@@ -277,7 +293,7 @@ instance Storable CsInsn where
                          poke csDetailPtr d'
                          {#set cs_insn->detail#} p (castPtr csDetailPtr)
 
--- an arch-sensitive peek for cs_insn 
+-- | an arch-sensitive peek for cs_insn 
 peekArch :: CsArch -> Ptr CsInsn -> IO CsInsn
 peekArch arch p = do
     insn <- peek p
@@ -288,12 +304,12 @@ peekArch arch p = do
            return insn { detail = Just det }
        else return insn
 
--- an arch-sensitive peekElemOff for cs_insn
+-- | an arch-sensitive peekElemOff for cs_insn
 peekElemOffArch :: CsArch -> Ptr CsInsn -> Int -> IO CsInsn
 peekElemOffArch arch ptr off =
     peekArch arch (plusPtr ptr (off * sizeOf (undefined :: CsInsn)))
 
--- an arch-sensitive peekArray for cs_insn
+-- | an arch-sensitive peekArray for cs_insn
 peekArrayArch :: CsArch -> Int -> Ptr CsInsn -> IO [CsInsn]
 peekArrayArch arch num ptr
     | num <= 0 = return []
@@ -302,46 +318,45 @@ peekArrayArch arch num ptr
     f 0 acc = do e <- peekElemOffArch arch ptr 0; return (e:acc)
     f n acc = do e <- peekElemOffArch arch ptr n; f (n-1) (e:acc)
 
--- our own port of the CS_INSN_OFFSET macro
+-- | our own port of the CS_INSN_OFFSET macro
 csInsnOffset :: Ptr CsInsn -> Int -> Int
 csInsnOffset p n = unsafePerformIO $
     (-) <$> getAddr (plusPtr p (n * {#sizeof cs_insn#})) <*> getAddr p
     where getAddr p = fromIntegral <$> {#get cs_insn->address#} p
 
--- possible error conditions
+-- | possible error conditions
 {#enum cs_err as CsErr {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- get the library version
+-- | get the library version
 {#fun pure cs_version as ^
     {alloca- `Int' peekNum*, alloca- `Int' peekNum*} -> `Int'#}
 
--- get information on supported features
 foreign import ccall "capstone/capstone.h cs_support"
     csSupport' :: CInt -> Bool
+-- | get information on supported features
 csSupport :: Enum a => a -> Bool
 csSupport = csSupport' . fromIntegral . fromEnum
 
--- open a new disassembly handle
+-- | open a new disassembly handle
 {#fun cs_open as ^
     {`CsArch', combine `[CsMode]', alloca- `Csh' peek*} -> `CsErr'#}
 
--- close a handle obtained by cs_open/csOpen
+-- | close a handle obtained by cs_open/'csOpen'
 {#fun cs_close as csClose' {id `Ptr Csh'} -> `CsErr'#}
 csClose :: Csh -> IO CsErr
 csClose = new >=> csClose'
 
--- set an option on a handle
+-- | set an option on a handle
 {#fun cs_option as ^ `Enum a' =>
     {`Csh', `CsOption', getCULongFromEnum `a'} -> `CsErr'#}
 
--- get the last error from a handle
+-- | get the last error from a handle
 {#fun cs_errno as ^ {`Csh'} -> `CsErr'#}
 
--- get the description of an error
+-- | get the description of an error
 {#fun pure cs_strerror as ^ {`CsErr'} -> `String'#}
 
--- disassemble a buffer
 foreign import ccall "capstone/capstone.h cs_disasm"
     csDisasm' :: Csh -- handle
               -> Ptr CUChar -> CSize -- buffer to disassemble
@@ -350,6 +365,7 @@ foreign import ccall "capstone/capstone.h cs_disasm"
               -> Ptr (Ptr CsInsn) -- where to put the instructions
               -> IO CSize -- number of succesfully disassembled instructions
 
+-- | disassemble a buffer
 csDisasm :: CsArch -> Csh -> [Word8] -> Word64 -> Int -> IO [CsInsn]
 csDisasm arch handle bytes addr num = do
     array <- newArray $ map fromIntegral bytes
@@ -363,13 +379,12 @@ csDisasm arch handle bytes addr num = do
     csFree resPtr resNum
     return res
 
--- free an instruction struct array
+-- | free an instruction struct array
 {#fun cs_free as ^ {castPtr `Ptr CsInsn', `Int'} -> `()'#}
 
--- allocate space for an instruction struct
+-- | allocate space for an instruction structure
 {#fun cs_malloc as ^ {`Csh'} -> `Ptr CsInsn' castPtr#}
 
--- disassemble one instruction at a time
 foreign import ccall "capstone/capstone.h cs_disasm_iter"
     csDisasmIter' :: Csh -- handle
                   -> Ptr (Ptr CUChar) -> Ptr CSize -- buffer description
@@ -377,6 +392,7 @@ foreign import ccall "capstone/capstone.h cs_disasm_iter"
                   -> Ptr CsInsn -- output buffer
                   -> IO Bool -- success
 
+-- | disassemble one instruction at a time
 csDisasmIter :: Csh -> [Word8] -> Word64
              -> IO ([Word8], Word64, Either CsErr CsInsn)
 csDisasmIter handle bytes addr = do
@@ -397,46 +413,46 @@ csDisasmIter handle bytes addr = do
                  else Left <$> csErrno handle
     return (map fromIntegral bytes', fromIntegral addr', result)
 
--- get a register's name as a String
+-- | get a register's name as a String
 {#fun pure cs_reg_name as csRegName' {`Csh', `Int'} -> `CString'#}
 csRegName :: Enum e => Csh -> e -> Maybe String
 csRegName h = stringLookup . csRegName' h . fromEnum
 
--- get a instruction's name as a String
+-- | get a instruction's name as a String
 {#fun pure cs_insn_name as csInsnName' {`Csh', `Int'} -> `CString'#}
 csInsnName :: Enum e => Csh -> e -> Maybe String
 csInsnName h = stringLookup . csInsnName' h . fromEnum
 
--- get a instruction group's name as a String
+-- | get a instruction group's name as a String
 {#fun pure cs_group_name as csGroupName' {`Csh', `Int'} -> `CString'#}
 csGroupName :: Enum e => Csh -> e -> Maybe String
 csGroupName h = stringLookup . csGroupName' h . fromEnum
 
--- check whether an instruction is member of a group
 foreign import ccall "capstone/capstone.h cs_insn_group"
     csInsnGroup' :: Csh -> Ptr CsInsn -> IO Bool
+-- | check whether an instruction is member of a group
 csInsnGroup :: Csh -> CsInsn -> Bool
 csInsnGroup h i = unsafePerformIO . withCast i $ csInsnGroup' h
 
--- check whether an instruction reads from a register
 foreign import ccall "capstone/capstone.h cs_reg_read"
     csRegRead' :: Csh -> Ptr CsInsn -> CUInt -> IO Bool
+-- | check whether an instruction reads from a register
 csRegRead :: Csh -> CsInsn -> Int -> Bool
 csRegRead h i =
     unsafePerformIO . withCast i . flip (csRegRead' h) . fromIntegral
 
--- check whether an instruction writes to a register
 foreign import ccall "capstone/capstone.h cs_reg_write"
     csRegWrite' :: Csh -> Ptr CsInsn -> CUInt -> IO Bool
+-- | check whether an instruction writes to a register
 csRegWrite :: Csh -> CsInsn -> Int -> Bool
 csRegWrite h i =
     unsafePerformIO . withCast i . flip (csRegWrite' h) . fromIntegral
 
--- return the number of operands of given type an instruction has
+-- | return the number of operands of given type an instruction has
 {#fun pure cs_op_count as ^
     {`Csh', withCast* `CsInsn', `Int'} -> `Int'#}
 
--- return the position of the first operand of given type an instruction has,
+-- | return the position of the first operand of given type an instruction has,
 -- given an inclusive search range
 {#fun pure cs_op_index as ^
     {`Csh', withCast* `CsInsn', `Int', `Int'} -> `Int'#}

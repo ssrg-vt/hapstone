@@ -1,4 +1,23 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-|
+Module      : Hapstone.Internal.X86
+Description : x86 architecture header ported using C2HS + some boilerplate
+Copyright   : (c) Inokentiy Babushkin, 2016
+License     : BSD3
+Maintainer  : Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>
+Stability   : experimental
+
+This module contains x86 specific datatypes and their respective Storable
+instances. Most of the types are used internally and can be looked up here.
+Some of them are currently unused, as the headers only define them as symbolic
+constants whose type is never used explicitly, which poses a problem for a
+memory-safe port to the Haskell language, this is about to get fixed in a
+future version.
+
+Apart from that, because the module is generated using C2HS, some of the
+documentation is misplaced or rendered incorrectly, so if in doubt, read the
+source file.
+-}
 module Hapstone.Internal.X86 where
 
 -- ugly workaround because... capstone doesn't import stdbool.h
@@ -15,28 +34,39 @@ import Foreign.C.Types
 
 import Hapstone.Internal.Util
 
--- enumerations
+-- | x86 registers
 {#enum x86_reg as X86Reg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | operand type for instruction's operands
 {#enum x86_op_type as X86OpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | AVX broadcast
 {#enum x86_avx_bcast as X86AvxBcast {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | SSE condition code
 {#enum x86_sse_cc as X86SseCc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | AVX condition code
 {#enum x86_avx_cc as X86AvxCc {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | AVX static rounding mode
 {#enum x86_avx_rm as X86AvxRm {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | instruction prefix
 {#enum x86_prefix as X86Prefix {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- memory access operands
-data X86OpMemStruct = X86OpMemStruct Word32 Word32 Word32 Int32 Int64
-    deriving (Show, Eq)
+-- | memory access operands
+data X86OpMemStruct = X86OpMemStruct
+    { segment :: Word32 -- ^ segment register
+    , base :: Word32 -- ^ base register
+    , index :: Word32 -- ^ index register
+    , scale :: Int32 -- ^ scale for index register
+    , disp' :: Int64 -- ^ displacement/offset value
+    } deriving (Show, Eq)
 
 instance Storable X86OpMemStruct where
     sizeOf _ = {#sizeof x86_op_mem#}
@@ -54,21 +84,22 @@ instance Storable X86OpMemStruct where
         {#set x86_op_mem->scale#} p (fromIntegral sc)
         {#set x86_op_mem->disp#} p (fromIntegral d)
 
--- possible operand types
+-- | possible operand types (corresponding to the tagged union in the C header)
 data CsX86OpValue
-    = Reg X86Reg
-    | Imm Word64
-    | Fp Double
-    | Mem X86OpMemStruct
-    | Undefined
+    = Reg X86Reg -- ^ register value for 'X86OpReg' operands
+    | Imm Word64 -- ^ immediate value for 'X86OpImm' operands
+    | Fp Double -- ^ floating point value for 'X86OpFp' operands
+    | Mem X86OpMemStruct -- ^ segment,base,index,scale,disp value for
+                         -- 'X86OpMem' operands
+    | Undefined -- ^ invalid operand value, for 'X86OpInvalid' operand
     deriving (Show, Eq)
 
--- operands
+-- | instruction operand
 data CsX86Op = CsX86Op
-    { value :: CsX86OpValue
-    , size :: Word8
-    , avxBcast :: X86AvxBcast
-    , avxZeroOpmask :: Bool
+    { value :: CsX86OpValue -- ^ operand type and value
+    , size :: Word8 -- ^ size of this operand in bytes
+    , avxBcast :: X86AvxBcast -- ^ AVX broadcast type
+    , avxZeroOpmask :: Bool -- ^ AVX zero opmask
     } deriving (Show, Eq)
 
 instance Storable CsX86Op where
@@ -113,20 +144,27 @@ instance Storable CsX86Op where
 -- instructions
 data CsX86 = CsX86
     { prefix :: (Maybe Word8, Maybe Word8, Maybe Word8, Maybe Word8)
-    , opcode :: [Word8]
-    , rex :: Word8
-    , addrSize :: Word8
-    , modRM :: Word8
-    , sib :: Maybe Word8
-    , disp :: Maybe Int32
-    , sibIndex :: X86Reg
-    , sibScale :: Int8
-    , sibBase :: X86Reg
-    , sseCc :: X86SseCc
-    , avxCc :: X86AvxCc
-    , avxSae :: Bool
-    , avxRm :: X86AvxRm
-    , operands :: [CsX86Op]
+      -- ^ instruction prefix, up to 4 bytes. Each prefix byte is optional.
+      -- first byte: REP/REPNE/LOCK, second byte: segment override,
+      -- third byte: operand-size override
+      -- fourth byte: address-size override
+    , opcode :: [Word8] -- ^ instruction opcode, 1-4 bytes long
+    , rex :: Word8 -- ^ REX prefix, only non-zero values relevant for x86_64
+    , addrSize :: Word8 -- ^ address size
+    , modRM :: Word8 -- ^ ModR/M byte
+    , sib :: Maybe Word8 -- ^ optional SIB value
+    , disp :: Maybe Int32 -- ^ optional displacement value
+    , sibIndex :: X86Reg -- ^ SIB index register, possibly irrelevant
+    , sibScale :: Int8 -- ^ SIB scale, possibly irrelevant
+    , sibBase :: X86Reg -- ^ SIB base register, possibly irrelevant
+    , sseCc :: X86SseCc -- ^ SSE condition code
+    , avxCc :: X86AvxCc -- ^ AVX condition code
+    , avxSae :: Bool -- ^ AXV Supress all Exception
+    , avxRm :: X86AvxRm -- ^ AVX static rounding mode
+    , operands :: [CsX86Op] -- ^ operand list for this instruction, *MUST*
+                            -- have <= 8 elements, else you'll get a runtime
+                            -- error when you (implicitly) try to write it to
+                            -- memory via it's Storable instance
     } deriving (Show, Eq)
 
 instance Storable CsX86 where
@@ -179,8 +217,9 @@ instance Storable CsX86 where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_x86->operands#}) o
 
--- more enumerations
+-- | x86 instructions
 {#enum x86_insn as X86Insn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+-- | x86 instruction groups
 {#enum x86_insn_group as X86InsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
