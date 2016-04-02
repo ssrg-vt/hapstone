@@ -193,7 +193,7 @@ instance Storable CsArm where
         <*> (toBool <$> (peekByteOff p 25 :: IO Word8)) -- writeback
         <*> ((toEnum . fromIntegral) <$> {#get cs_arm->mem_barrier#} p)
         <*> do num <- fromIntegral <$> {#get cs_arm->op_count#} p
-               let ptr = plusPtr p {#offsetof cs_arm.operands#}
+               let ptr = plusPtr p 40
                peekArray num ptr
     poke p (CsArm u vS vD cM cF cc uF w m o) = do
         pokeByteOff p 0 (fromBool u :: Word8) -- usermode
@@ -208,7 +208,7 @@ instance Storable CsArm where
         {#set cs_arm->op_count#} p (fromIntegral $ length o)
         if length o > 36
            then error "operands overflew 36 elements"
-           else pokeArray (plusPtr p {#offsetof cs_arm->operands#}) o
+           else pokeArray (plusPtr p 40) o
 
 -- | ARM registers
 {#enum arm_reg as ArmReg {underscoreToCase}

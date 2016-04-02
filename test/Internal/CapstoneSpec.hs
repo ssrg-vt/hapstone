@@ -1,6 +1,7 @@
 module Internal.CapstoneSpec where
 
 import Foreign
+import Foreign.C.String
 import Foreign.C.Types
 
 import Test.Hspec
@@ -23,6 +24,25 @@ spec = describe "Hapstone.Internal.Capstone" $ do
     csDisasmSpec
     csDisasmIterSpec
 
+getCsSkipdataStruct :: IO CsSkipdataStruct
+getCsSkipdataStruct = do
+    let wordSize = sizeOf (0 :: WordPtr)
+    -- space allocation
+    ptr <- mallocArray (sizeOf csSkipdataStruct) :: IO (Ptr Word8)
+    -- mnemonic
+    str <- newCString "teststr"
+    poke (castPtr ptr) (ptrToWordPtr str)
+    -- callback
+    poke (plusPtr ptr wordSize) (0xabcdefab :: WordPtr)
+    -- user_data
+    poke (plusPtr ptr (2*wordSize)) (0x01234567 :: WordPtr)
+    peek (castPtr ptr) <* free ptr
+
+csSkipdataStruct :: CsSkipdataStruct
+csSkipdataStruct = CsSkipdataStruct "teststr"
+    (castPtrToFunPtr . wordPtrToPtr $ fromIntegral 0xabcdefab)
+    (wordPtrToPtr $ fromIntegral 0x01234567)
+
 csSkipdataStructStorableSpec :: Spec
 csSkipdataStructStorableSpec = describe "Storable CsSkipdataStruct" $ do
     it "is a packed struct" $ 
@@ -30,13 +50,44 @@ csSkipdataStructStorableSpec = describe "Storable CsSkipdataStruct" $ do
     it "has matching peek- and poke-implementations" $ property $
         \s@CsSkipdataStruct{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s
-    it "parses correctly" $ pendingWith "use a binary string generated"
+    it "parses correctly" $
+        getCsSkipdataStruct `shouldReturn` csSkipdataStruct
 
 csSetSkipdataSpec :: Spec
 csSetSkipdataSpec = describe "csSetSkipdata" $ do
     it "resets correctly" pending
     it "sets correctly" pending
     it "throws errors correctly" pending
+
+getCsDetail :: IO CsDetail
+getCsDetail = do
+    -- space allocation
+    ptr <- mallocArray (sizeOf csDetail) :: IO (Ptr Word8)
+    pokeArray ptr
+        [ -- regs_read
+          0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB
+          -- regs_read_count
+        , 0xC
+          -- regs_write
+        , 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD
+        , 0xE, 0xF, 0x0, 0x1, 0x2, 0x3
+          -- regs_write_count
+        , 0x14
+          -- groups
+        , 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7
+          -- groups_count
+        , 0x8
+        ] 
+    peek (castPtr ptr) <* free ptr
+
+csDetail :: CsDetail
+csDetail = CsDetail
+    [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB ]
+    [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD
+    , 0xE, 0xF, 0x0, 0x1, 0x2, 0x3
+    ]
+    [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7 ]
+    Nothing
 
 csDetailStorableSpec :: Spec
 csDetailStorableSpec = describe "Storable CsDetail" $ do
@@ -45,11 +96,38 @@ csDetailStorableSpec = describe "Storable CsDetail" $ do
     it "has matching peek- and poke-implementations with no arch specifics" $
         property $ \s@CsDetail{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s
-    it "parses correctly" $ pendingWith "use a binary string generated"
+    it "parses correctly" $
+        getCsDetail `shouldReturn` csDetail
 
 peekDetailSpec :: Spec
 peekDetailSpec = describe "peekDetail" $ do
     it "returns results when a pointer is given" pending
+
+getCsInsn :: IO CsInsn
+getCsInsn = do
+    ptr <- mallocArray (sizeOf csInsn) :: IO (Ptr Word8)
+    -- id
+    poke (castPtr ptr) (0x01234567 :: Word32)
+    -- address
+    poke (plusPtr ptr 8) (0x0123456789abcdef :: Word64)
+    -- size
+    poke (plusPtr ptr 16) (0x10 :: Word16)
+    -- bytes
+    pokeArray (plusPtr ptr 18) ([0x0..0xf] :: [Word8])
+    -- mnemonic
+    pokeArray (plusPtr ptr 34) ([0x1..0x20] :: [Word8])
+    -- op_str
+    pokeArray (plusPtr ptr 66) ([0x1..0x7f] ++ [0x0] :: [Word8])
+    peek (castPtr ptr) <* free ptr
+
+csInsn :: CsInsn
+csInsn = CsInsn
+    0x01234567
+    0x0123456789abcdef
+    [0x0..0xf]
+    (map castCCharToChar [0x1..0x20])
+    (map castCCharToChar [0x1..0x7f])
+    Nothing
 
 csInsnStorableSpec :: Spec
 csInsnStorableSpec = describe "Storable CsInsn" $ do
@@ -60,7 +138,8 @@ csInsnStorableSpec = describe "Storable CsInsn" $ do
     it "has matching peek- and poke-implementations with no detail" $
         property $ \s@CsInsn{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s
-    it "parses correctly" $ pendingWith "use a binary string generated"
+    it "parses correctly" $
+        getCsInsn `shouldReturn` csInsn
 
 peekWithArchSpec :: Spec
 peekWithArchSpec = describe "Storable CsInsn" $ do
