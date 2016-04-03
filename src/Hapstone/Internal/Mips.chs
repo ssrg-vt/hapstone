@@ -95,13 +95,13 @@ instance Storable CsMips where
     alignment _ = 8
     peek p = CsMips
         <$> do num <- fromIntegral <$> {#get cs_mips->op_count#} p
-               let ptr = plusPtr p {#offsetof cs_mips.operands#}
+               let ptr = plusPtr p 8
                peekArray num ptr
     poke p (CsMips o) = do
         {#set cs_mips->op_count#} p (fromIntegral $ length o)
         if length o > 8
            then error "operands overflew 8 elements"
-           else pokeArray (plusPtr p {#offsetof cs_mips->operands#}) o
+           else pokeArray (plusPtr p 8) o
 
 -- | MIPS registers
 {#enum mips_reg as MipsReg {underscoreToCase}
