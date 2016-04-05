@@ -1,5 +1,5 @@
 name:                hapstone
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Capstone bindings for Haskell
 description:         Please see README.md
 homepage:            http://github.com/ibabushkin/hapstone
@@ -8,7 +8,7 @@ license-file:        LICENSE
 author:              Inokentiy Babushkin
 maintainer:          inokentiy.babushkin@googlemail.com
 copyright:           2016 Inokentiy Babushkin
-category:            None
+category:            Disassembler
 build-type:          Simple
 cabal-version:       >=1.10
 
