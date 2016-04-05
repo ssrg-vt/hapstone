@@ -9,3 +9,4 @@ enhance the docs, please do this over issues/pull requests on GitHub,
 contribution is always welcome.
 
 [Link to Hackage](https://hackage.haskell.org/package/hapstone).
+Note that you need `c2hs` to compile.
