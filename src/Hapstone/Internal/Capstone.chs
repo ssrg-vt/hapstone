@@ -111,6 +111,8 @@ type Csh = CSize
 
 -- TODO: we will skip user defined dynamic memory routines for now
 
+-- TODO: add cs_opt_mnem struct (yay for naming)
+
 -- | options are, interestingly, represented by different types: an option
 {#enum cs_opt_type as CsOption {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
@@ -121,6 +123,8 @@ type Csh = CSize
 -- | arch-uniting operand type
 {#enum cs_op_type as CsOperand {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
+
+-- TODO: find a place for cs_ac_type
 
 -- | arch-uniting instruction group type
 {#enum cs_group_type as CsGroup {underscoreToCase}
@@ -456,3 +460,5 @@ csRegWrite h i =
 -- given an inclusive search range
 {#fun pure cs_op_index as ^
     {`Csh', withCast* `CsInsn', `Int', `Int'} -> `Int'#}
+
+-- TODO: bind to cs_regs_access
