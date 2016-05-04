@@ -80,11 +80,15 @@ import Foreign.C.Types
 {#enum arm64_prefetch_op as Arm64PrefetchOp {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | ARM64 registers
+{#enum arm64_reg as Arm64Reg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
 -- | memory access operands
 -- associated with 'Arm64OpMem' operand type
 data Arm64OpMemStruct = Arm64OpMemStruct
-    { base :: Word32 -- ^ base register
-    , index :: Word32 -- ^ index register
+    { base :: Arm64Reg -- ^ base register
+    , index :: Arm64Reg -- ^ index register
     , disp :: Int32 -- ^ displacement/offset value
     } deriving (Show, Eq)
 
@@ -92,17 +96,17 @@ instance Storable Arm64OpMemStruct where
     sizeOf _ = {#sizeof arm64_op_mem#}
     alignment _ = {#alignof arm64_op_mem#}
     peek p = Arm64OpMemStruct
-        <$> (fromIntegral <$> {#get arm64_op_mem->base#} p)
-        <*> (fromIntegral <$> {#get arm64_op_mem->index#} p)
-        <*> (fromIntegral <$> {#get arm64_op_mem->disp#} p)
+        <$> ((toEnum . fromIntegral) <$> {#get arm64_op_mem->base#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get arm64_op_mem->index#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get arm64_op_mem->disp#} p)
     poke p (Arm64OpMemStruct b i d) = do
-        {#set arm64_op_mem->base#} p (fromIntegral b)
-        {#set arm64_op_mem->index#} p (fromIntegral i)
-        {#set arm64_op_mem->disp#} p (fromIntegral d)
+        {#set arm64_op_mem->base#} p (fromIntegral $ fromEnum b)
+        {#set arm64_op_mem->index#} p (fromIntegral $ fromEnum i)
+        {#set arm64_op_mem->disp#} p (fromIntegral $ fromEnum d)
 
 -- | possible operand types (corresponding to the tagged union in the C header)
 data CsArm64OpValue
-    = Reg Word32 -- ^ register value for 'Arm64OpReg' operands
+    = Reg Arm64Reg -- ^ register value for 'Arm64OpReg' operands
     | Imm Int64 -- ^ immediate value for 'Arm64OpImm' operands
     | CImm Int64 -- ^ index value for 'Arm64OpCimm' operands
     | Fp Double -- ^ floating point value for 'Arm64OpFp' operands
@@ -125,6 +129,7 @@ data CsArm64Op = CsArm64Op
     , shift :: (Arm64Shifter, Word32) -- ^ shifter type and value
     , ext :: Arm64Extender -- ^ extender type
     , value :: CsArm64OpValue -- ^ operand type and value
+    , access :: Word8 -- ^ the access mode TODO
     } deriving (Show, Eq)
 
 instance Storable CsArm64Op where
@@ -142,7 +147,8 @@ instance Storable CsArm64Op where
             t <- fromIntegral <$> {#get cs_arm64_op->type#} p
             let bP = plusPtr p 32
             case toEnum t of
-              Arm64OpReg -> (Reg . fromIntegral) <$> (peek bP :: IO CUInt)
+              Arm64OpReg -> (Reg . toEnum . fromIntegral) <$>
+                  (peek bP :: IO CUInt)
               Arm64OpImm -> (Imm . fromIntegral) <$> (peek bP :: IO Int64)
               Arm64OpCimm -> (CImm . fromIntegral) <$> (peek bP :: IO Int64)
               Arm64OpFp -> (Fp . realToFrac) <$> (peek bP :: IO CDouble)
@@ -155,7 +161,8 @@ instance Storable CsArm64Op where
               Arm64OpBarrier -> (Barrier . toEnum . fromIntegral) <$>
                  (peek bP :: IO CInt)
               _ -> return Undefined
-    poke p (CsArm64Op vI va ve (sh, shV) ext val) = do
+        <*> (peek (plusPtr p 44) :: IO Word8)
+    poke p (CsArm64Op vI va ve (sh, shV) ext val acc) = do
         {#set cs_arm64_op->vector_index#} p (fromIntegral vI)
         {#set cs_arm64_op->vas#} p (fromIntegral $ fromEnum va)
         {#set cs_arm64_op->vess#} p (fromIntegral $ fromEnum ve)
@@ -166,7 +173,7 @@ instance Storable CsArm64Op where
             setType = {#set cs_arm64_op->type#} p . fromIntegral . fromEnum
         case val of
           Reg r -> do
-              poke bP (fromIntegral r :: CUInt)
+              poke bP (fromIntegral $ fromEnum r :: CUInt)
               setType Arm64OpReg
           Imm i -> do
               poke bP (fromIntegral i :: Int64)
@@ -193,6 +200,7 @@ instance Storable CsArm64Op where
               poke bP (fromIntegral $ fromEnum b :: CInt)
               setType Arm64OpBarrier
           _ -> setType Arm64OpInvalid
+        poke (plusPtr p 44) acc
 
 -- | instruction datatype
 data CsArm64 = CsArm64
@@ -224,9 +232,6 @@ instance Storable CsArm64 where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_arm64->operands#}) o
 
--- | ARM64 registers
-{#enum arm64_reg as Arm64Reg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
 -- | ARM64 instructions
 {#enum arm64_insn as Arm64Insn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

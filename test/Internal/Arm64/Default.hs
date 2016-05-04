@@ -71,7 +71,7 @@ instance Arbitrary CsArm64OpValue where
 
 instance Arbitrary CsArm64Op where
     arbitrary = CsArm64Op <$> arbitrary <*> arbitrary <*> arbitrary <*>
-        arbitrary <*> arbitrary <*> arbitrary
+        arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary CsArm64 where
     arbitrary = CsArm64 <$> arbitrary <*> arbitrary <*> arbitrary <*>

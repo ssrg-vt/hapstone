@@ -20,13 +20,13 @@ spec = describe "Hapstone.Internal.Arm64" $ do
 getArm64OpMemStruct :: IO Arm64OpMemStruct
 getArm64OpMemStruct = do
     ptr <- mallocArray (sizeOf arm64OpMemStruct) :: IO (Ptr Word8)
-    poke (castPtr ptr) (0x01234567 :: Word32)
-    poke (plusPtr ptr 4) (0x10325476 :: Word32)
+    poke (castPtr ptr) (fromIntegral $ fromEnum Arm64RegB4 :: Word32)
+    poke (plusPtr ptr 4) (fromIntegral $ fromEnum Arm64RegB16 :: Word32)
     poke (plusPtr ptr 8) (0x03152746 :: Int32)
     peek (castPtr ptr) <* free ptr
 
 arm64OpMemStruct :: Arm64OpMemStruct
-arm64OpMemStruct = Arm64OpMemStruct 0x01234567 0x10325476 0x03152746
+arm64OpMemStruct = Arm64OpMemStruct Arm64RegB4 Arm64RegB16 0x03152746
 
 -- | Arm64OpMemStruct spec
 arm64OpMemStructSpec :: Spec
@@ -50,16 +50,17 @@ getCsArm64Op = do
     poke (plusPtr ptr 20) (fromIntegral $ fromEnum Arm64ExtUxtb :: Int32)
     poke (plusPtr ptr 24) (fromIntegral $ fromEnum Arm64OpImm :: Int32)
     poke (plusPtr ptr 32) (0x0123456789abcdef :: Int64)
+    poke (plusPtr ptr 44) (0x1 :: Word8)
     peek (castPtr ptr) <* free ptr
 
 csArm64Op :: CsArm64Op
 csArm64Op = CsArm64Op 0x01234567 Arm64Vas8b Arm64VessB
-    (Arm64SftMsl, 0x01234567) Arm64ExtUxtb (Imm 0x0123456789abcdef)
+    (Arm64SftMsl, 0x01234567) Arm64ExtUxtb (Imm 0x0123456789abcdef) 0x1
 
 csArm64OpSpec :: Spec
 csArm64OpSpec = describe "Storable CsArm64Op" $ do
     it "has a memory-layout we can handle" $
-        sizeOf (undefined :: CsArm64Op) == 7*4 + 4 + 12 + 4
+        sizeOf (undefined :: CsArm64Op) == 7*4 + 4 + 12 + 1 + 3
     it "has matching peek- and poke-implementations" $ property $
         \s@CsArm64Op{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s

@@ -54,6 +54,8 @@ void print_alignment(void){
             sizeof(arm64_prefetch_op));
     printf("union.barrier:\t%d\t%d\n", (void *)&test.barrier - base,
             sizeof(arm64_barrier_op));
+    printf("access:\t%d\t%d\n", (void *)&test.access - base,
+            sizeof(uint8_t));
 }
 
 int main(void){
