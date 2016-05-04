@@ -33,7 +33,7 @@ instance Arbitrary ArmVectordataType where
 
 instance Arbitrary ArmOpMemStruct where
     arbitrary = ArmOpMemStruct <$> arbitrary <*>
-        arbitrary <*> arbitrary <*> arbitrary
+        arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary CsArmOpValue where
     arbitrary = oneof
@@ -49,7 +49,8 @@ instance Arbitrary CsArmOpValue where
         ]
 
 instance Arbitrary CsArmOp where
-    arbitrary = CsArmOp <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = CsArmOp <$> arbitrary <*> arbitrary <*>
+        arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary CsArm where
     arbitrary = CsArm <$> arbitrary <*> arbitrary <*> arbitrary <*>

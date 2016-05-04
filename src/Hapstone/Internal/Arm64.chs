@@ -161,7 +161,7 @@ instance Storable CsArm64Op where
               Arm64OpBarrier -> (Barrier . toEnum . fromIntegral) <$>
                  (peek bP :: IO CInt)
               _ -> return Undefined
-        <*> (peek (plusPtr p 44) :: IO Word8)
+        <*> (peekByteOff p 44 :: IO Word8) -- access
     poke p (CsArm64Op vI va ve (sh, shV) ext val acc) = do
         {#set cs_arm64_op->vector_index#} p (fromIntegral vI)
         {#set cs_arm64_op->vas#} p (fromIntegral $ fromEnum va)
@@ -200,7 +200,7 @@ instance Storable CsArm64Op where
               poke bP (fromIntegral $ fromEnum b :: CInt)
               setType Arm64OpBarrier
           _ -> setType Arm64OpInvalid
-        poke (plusPtr p 44) acc
+        pokeByteOff p 44 acc
 
 -- | instruction datatype
 data CsArm64 = CsArm64

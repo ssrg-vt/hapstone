@@ -57,28 +57,35 @@ import Foreign.C.Types
 {#enum arm_vectordata_type as ArmVectordataType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | ARM registers
+{#enum arm_reg as ArmReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
 -- | memory access operands
 -- associated with 'ArmOpMem' operand type
 data ArmOpMemStruct = ArmOpMemStruct
-    { base :: Word32 -- ^ base register
-    , index :: Word32 -- ^ index register
+    { base :: ArmReg -- ^ base register
+    , index :: ArmReg -- ^ index register
     , scale :: Int32 -- ^ scale for index register (1 or -1)
     , disp :: Int32 -- ^ displacement/offset value
+    , lshift :: Int32 -- ^ left shift on index register
     } deriving (Show, Eq)
 
 instance Storable ArmOpMemStruct where
     sizeOf _ = {#sizeof arm_op_mem#}
     alignment _ = {#alignof arm_op_mem#}
     peek p = ArmOpMemStruct
-        <$> (fromIntegral <$> {#get arm_op_mem->base#} p)
-        <*> (fromIntegral <$> {#get arm_op_mem->index#} p)
+        <$> ((toEnum . fromIntegral) <$> {#get arm_op_mem->base#} p)
+        <*> ((toEnum . fromIntegral) <$> {#get arm_op_mem->index#} p)
         <*> (fromIntegral <$> {#get arm_op_mem->scale#} p)
         <*> (fromIntegral <$> {#get arm_op_mem->disp#} p)
-    poke p (ArmOpMemStruct b i s d) = do
-        {#set arm_op_mem->base#} p (fromIntegral b)
-        {#set arm_op_mem->index#} p (fromIntegral i)
+        <*> (fromIntegral <$> {#get arm_op_mem->lshift#} p)
+    poke p (ArmOpMemStruct b i s d l) = do
+        {#set arm_op_mem->base#} p (fromIntegral $ fromEnum b)
+        {#set arm_op_mem->index#} p (fromIntegral $ fromEnum i)
         {#set arm_op_mem->scale#} p (fromIntegral s)
         {#set arm_op_mem->disp#} p (fromIntegral d)
+        {#set arm_op_mem->lshift#} p (fromIntegral l)
 
 -- | possible operand types (corresponding to the tagged union in the C header)
 data CsArmOpValue
@@ -100,6 +107,8 @@ data CsArmOp = CsArmOp
     , shift :: (ArmShifter, Word32) -- ^ shifter type and value
     , value :: CsArmOpValue -- ^ operand type and value
     , subtracted :: Bool -- ^ if 'True', operand is subtracted, else added
+    , access :: Word8 -- ^ access mode of operand
+    , neon_lane :: Int8 -- ^ neon lane index for NEON instructions, else -1
     } deriving (Show, Eq)
 
 instance Storable CsArmOp where
@@ -124,8 +133,10 @@ instance Storable CsArmOp where
               ArmOpSetend -> (Setend . toEnum . fromIntegral) <$>
                   (peek bP :: IO CInt)
               _ -> return Undefined
-        <*> (toBool <$> (peekByteOff p 32 :: IO Word8)) -- subtracted
-    poke p (CsArmOp vI (sh, shV) val sub) = do
+        <*> (toBool <$> (peekByteOff p 36 :: IO Word8)) -- subtracted
+        <*> (peekByteOff p 37 :: IO Word8) -- access
+        <*> (peekByteOff p 38 :: IO Int8) -- neon_lane
+    poke p (CsArmOp vI (sh, shV) val sub acc neon) = do
         {#set cs_arm_op->vector_index#} p (fromIntegral vI)
         {#set cs_arm_op->shift.type#} p (fromIntegral $ fromEnum sh)
         {#set cs_arm_op->shift.value#} p (fromIntegral shV)
@@ -157,7 +168,9 @@ instance Storable CsArmOp where
               poke bP (fromIntegral $ fromEnum s :: CInt)
               setType ArmOpSetend
           _ -> setType ArmOpInvalid
-        pokeByteOff p 32 (fromBool sub :: Word8) -- subtracted
+        pokeByteOff p 36 (fromBool sub :: Word8) -- subtracted
+        pokeByteOff p 37 acc -- access
+        pokeByteOff p 38 neon -- neon_lane
 
 -- | instruction datatype
 data CsArm = CsArm
@@ -210,9 +223,6 @@ instance Storable CsArm where
            then error "operands overflew 36 elements"
            else pokeArray (plusPtr p 40) o
 
--- | ARM registers
-{#enum arm_reg as ArmReg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
 -- | ARM instructions
 {#enum arm_insn as ArmInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
