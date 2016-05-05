@@ -31,6 +31,10 @@ import Foreign.C.Types
 {#enum xcore_op_type as XCoreOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | XCore registers
+{#enum xcore_reg as XCoreReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
 -- | memory access operands
 -- associated with 'XcoreOpMem' operand type
 data XCoreOpMemStruct = XCoreOpMemStruct
@@ -56,7 +60,7 @@ instance Storable XCoreOpMemStruct where
 
 -- | instruction operand
 data CsXCoreOp
-    = Reg Word32 -- ^ register value for 'XcoreOpReg' operands
+    = Reg XCoreReg -- ^ register value for 'XcoreOpReg' operands
     | Imm Int32 -- ^ immediate value for 'XcoreOpImm' operands
     | Mem XCoreOpMemStruct -- ^ base/index/disp/direct value for 'XcoreOpMem'
                            -- operands
@@ -70,7 +74,7 @@ instance Storable CsXCoreOp where
         t <- fromIntegral <$> {#get cs_xcore_op->type#} p
         let bP = plusPtr p 4
         case toEnum t of
-          XcoreOpReg -> Reg <$> peek bP
+          XcoreOpReg -> (Reg . toEnum . fromIntegral) <$> (peek bP :: IO Int32)
           XcoreOpImm -> Imm <$> peek bP
           XcoreOpMem -> Mem <$> peek bP
           _ -> return Undefined
@@ -78,7 +82,8 @@ instance Storable CsXCoreOp where
         let bP = plusPtr p 4
             setType = {#set cs_xcore_op->type#} p . fromIntegral . fromEnum
         case op of
-          Reg r -> poke bP r >> setType XcoreOpReg
+          Reg r -> do poke bP (fromIntegral $ fromEnum r :: Int32)
+                      setType XcoreOpReg
           Imm i -> poke bP i >> setType XcoreOpImm
           Mem m -> poke bP m >> setType XcoreOpMem
           _ -> setType XcoreOpInvalid
@@ -103,9 +108,6 @@ instance Storable CsXCore where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_xcore->operands#}) o
 
--- | XCore registers
-{#enum xcore_reg as XCoreReg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
 -- | XCore instructions
 {#enum xcore_insn as XCoreInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
