@@ -21,6 +21,8 @@ instance Arbitrary X86OpType where
 
 instance Arbitrary X86AvxBcast where
     arbitrary = elements [minBound..maxBound]
+instance Arbitrary X86XopCc where
+    arbitrary = elements [minBound..maxBound]
 instance Arbitrary X86SseCc where
     arbitrary = elements [minBound..maxBound]
 instance Arbitrary X86AvxCc where
@@ -39,16 +41,16 @@ instance Arbitrary CsX86Op where
     arbitrary = CsX86Op <$> oneof
         [ Reg <$> arbitrary
         , Imm <$> arbitrary
-        , Fp <$> arbitrary
+        -- , Fp <$> arbitrary
         , Mem <$> arbitrary
         , pure Undefined
-        ] <*> arbitrary <*> arbitrary <*> arbitrary
+        ] <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary CsX86 where
     arbitrary = CsX86 <$> tuple <*> list <*> arbitrary <*>
         arbitrary <*> arbitrary <*> nZ <*> nZ <*> arbitrary <*>
         arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*>
-        arbitrary <*> (take 8 <$> arbitrary)
+        arbitrary <*> arbitrary <*> arbitrary <*> (take 8 <$> arbitrary)
         where tuple = (,,,) <$> nZ <*> nZ <*> nZ <*> nZ
               nZ :: (Arbitrary a, Eq a, Num a) => Gen (Maybe a)
               nZ = fromZero <$> arbitrary

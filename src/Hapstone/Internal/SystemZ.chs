@@ -35,6 +35,10 @@ import Foreign.C.Types
 {#enum sysz_op_type as SysZOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | SystemZ registers
+{#enum sysz_reg as SysZReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
 -- | memory access operands
 data SysZOpMemStruct = SysZOpMemStruct
     { base :: Word8 -- ^ base register
@@ -119,12 +123,10 @@ instance Storable CsSysZ where
            then error "operands overflew 6 elements"
            else pokeArray (plusPtr p {#offsetof cs_sysz->operands#}) o
 
--- | SystemZ registers
-{#enum sysz_reg as SysZReg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
 -- | SystemZ instructions
 {#enum sysz_insn as SysZInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 -- | SystemZ instruction groups
+
 {#enum sysz_insn_group as SysZInsnGroup {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
