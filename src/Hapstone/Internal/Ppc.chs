@@ -34,12 +34,12 @@ import Foreign.C.Types
 {#enum ppc_bh as PpcBh {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
--- | PPC registers
-{#enum ppc_reg as PpcReg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
-
 -- | operand type for instruction's operands
 {#enum ppc_op_type as PpcOpType {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
+-- | PPC registers
+{#enum ppc_reg as PpcReg {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
 -- | memory access operands

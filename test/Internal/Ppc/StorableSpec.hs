@@ -21,12 +21,12 @@ spec = describe "Hapstone.Internal.Ppc" $ do
 getPpcOpMemStruct :: IO PpcOpMemStruct
 getPpcOpMemStruct = do
     ptr <- mallocArray (sizeOf ppcOpMemStruct) :: IO (Ptr Word8)
-    poke (castPtr ptr) (fromIntegral $ fromEnum PpcRegCc :: Int32)
+    poke (castPtr ptr) (fromIntegral $ fromEnum PpcRegCr0 :: Int32)
     poke (plusPtr ptr 4) (24 :: Int32)
     peek (castPtr ptr) <* free ptr
 
 ppcOpMemStruct :: PpcOpMemStruct
-ppcOpMemStruct = PpcOpMemStruct PpcRegCc 24
+ppcOpMemStruct = PpcOpMemStruct PpcRegCr0 24
 
 -- | PpcOpMemStruct spec
 ppcOpMemStructSpec :: Spec
@@ -42,12 +42,12 @@ getPpcOpCrxStruct :: IO PpcOpCrxStruct
 getPpcOpCrxStruct = do
     ptr <- mallocArray (sizeOf ppcOpCrxStruct) :: IO (Ptr Word8)
     poke (castPtr ptr) (0x01234567 :: Word32)
-    poke (plusPtr ptr 4) (fromIntegral $ fromEnum PpcRegCc :: Int32)
+    poke (plusPtr ptr 4) (fromIntegral $ fromEnum PpcRegCr0 :: Int32)
     poke (plusPtr ptr 8) (fromIntegral $ fromEnum PpcBcGe :: Int32)
     peek (castPtr ptr) <* free ptr
 
 ppcOpCrxStruct :: PpcOpCrxStruct
-ppcOpCrxStruct = PpcOpCrxStruct 0x01234567 PpcRegCc PpcBcGe
+ppcOpCrxStruct = PpcOpCrxStruct 0x01234567 PpcRegCr0 PpcBcGe
 
 -- | PpcOpCrxStruct spec
 ppcOpCrxStructSpec :: Spec

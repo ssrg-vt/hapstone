@@ -38,6 +38,10 @@ import Foreign.C.Types
 {#enum sparc_op_type as SparcOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | SPARC registers
+{#enum sparc_reg as SparcReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
 -- | memory access operand
 -- associated with 'SparcOpMem' operand type
 data SparcOpMemStruct = SparcOpMemStruct
@@ -119,9 +123,6 @@ instance Storable CsSparc where
            then error "operands overflew 4 elements"
            else pokeArray (plusPtr p {#offsetof cs_sparc->operands#}) o
 
--- | SPARC registers
-{#enum sparc_reg as SparcReg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
 -- | SPARC instructions
 {#enum sparc_insn as SparcInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
