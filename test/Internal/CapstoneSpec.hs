@@ -63,21 +63,22 @@ getCsDetail :: IO CsDetail
 getCsDetail = do
     -- space allocation
     ptr <- mallocArray (sizeOf csDetail) :: IO (Ptr Word8)
-    pokeArray ptr
-        [ -- regs_read
-          0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB
-          -- regs_read_count
-        , 0xC
-          -- regs_write
-        , 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD
-        , 0xE, 0xF, 0x0, 0x1, 0x2, 0x3
-          -- regs_write_count
-        , 0x14
-          -- groups
-        , 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7
-          -- groups_count
-        , 0x8
-        ] 
+    -- regs_read
+    pokeArray (castPtr ptr :: Ptr Word16)
+        [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB]
+    -- regs_read_count
+    pokeByteOff ptr 24 (12 :: Word8)
+    -- regs_write
+    pokeArray (plusPtr ptr 26 :: Ptr Word16)
+        [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB
+        , 0xC, 0xD, 0xE, 0xF, 0x0, 0x1, 0x2, 0x3
+        ]
+    -- regs_write_count
+    pokeByteOff ptr 66 (20 :: Word8)
+    -- groups
+    pokeArray (plusPtr ptr 67 :: Ptr Word8) [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7]
+    -- groups_count
+    pokeByteOff ptr 75 (8 :: Word8)
     peek (castPtr ptr) <* free ptr
 
 csDetail :: CsDetail
@@ -92,7 +93,7 @@ csDetail = CsDetail
 csDetailStorableSpec :: Spec
 csDetailStorableSpec = describe "Storable CsDetail" $ do
     it "has a memory layout we can manage" $
-        sizeOf (undefined :: CsDetail) == 43 + 5 + 1480
+        sizeOf (undefined :: CsDetail) == 24 + 1 + 1 + 40 + 1 + 8 + 1 + 4 + 1480
     it "has matching peek- and poke-implementations with no arch specifics" $
         property $ \s@CsDetail{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s

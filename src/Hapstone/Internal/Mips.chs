@@ -31,10 +31,14 @@ import Foreign.C.Types
 {#enum mips_op_type as MipsOpType {underscoreToCase}
     deriving (Show, Eq, Bounded)#}
 
+-- | MIPS registers
+{#enum mips_reg as MipsReg {underscoreToCase}
+    deriving (Show, Eq, Bounded)#}
+
 -- | memory access operands
 -- associated with 'MipsOpMem' operand type
 data MipsOpMemStruct = MipsOpMemStruct 
-    { base :: Word32 -- ^ base register
+    { base :: MipsReg -- ^ base register
     , disp ::  Int64 -- ^ displacement/offset value
     } deriving (Show, Eq)
 
@@ -42,10 +46,10 @@ instance Storable MipsOpMemStruct where
     sizeOf _ = {#sizeof mips_op_mem#}
     alignment _ = {#alignof mips_op_mem#}
     peek p = MipsOpMemStruct
-        <$> (fromIntegral <$> {#get mips_op_mem->base#} p)
+        <$> ((toEnum . fromIntegral) <$> {#get mips_op_mem->base#} p)
         <*> (fromIntegral <$> {#get mips_op_mem->disp#} p)
     poke p (MipsOpMemStruct b d) = do
-        {#set mips_op_mem->base#} p (fromIntegral b)
+        {#set mips_op_mem->base#} p (fromIntegral $ fromEnum b)
         {#set mips_op_mem->disp#} p(fromIntegral d)
 
 -- | instruction operand
@@ -103,9 +107,6 @@ instance Storable CsMips where
            then error "operands overflew 8 elements"
            else pokeArray (plusPtr p 8) o
 
--- | MIPS registers
-{#enum mips_reg as MipsReg {underscoreToCase}
-    deriving (Show, Eq, Bounded)#}
 -- | MIPS instructions
 {#enum mips_insn as MipsInsn {underscoreToCase}
     deriving (Show, Eq, Bounded)#}

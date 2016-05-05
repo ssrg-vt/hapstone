@@ -178,8 +178,8 @@ data ArchInfo
 
 -- | instruction information
 data CsDetail = CsDetail
-    { regsRead :: [Word8] -- ^ registers read by this instruction
-    , regsWrite :: [Word8] -- ^ registers written by this instruction
+    { regsRead :: [Word16] -- ^ registers read by this instruction
+    , regsWrite :: [Word16] -- ^ registers written by this instruction
     , groups :: [Word8] -- ^ instruction groups this instruction belongs to
     , archInfo :: Maybe ArchInfo -- ^ (optional) architecture-specific info
     } deriving (Show, Eq)
@@ -192,7 +192,7 @@ data CsDetail = CsDetail
 -- for that.
 
 instance Storable CsDetail where
-    sizeOf _ = 1528
+    sizeOf _ = 1560
     alignment _ = 8
     peek p = CsDetail
         <$> do num <- fromIntegral <$> {#get cs_detail->regs_read_count#} p

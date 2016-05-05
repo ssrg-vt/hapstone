@@ -20,12 +20,12 @@ spec = describe "Hapstone.Internal.Mips" $ do
 getMipsOpMemStruct :: IO MipsOpMemStruct
 getMipsOpMemStruct = do
     ptr <- mallocArray (sizeOf mipsOpMemStruct) :: IO (Ptr Word8)
-    poke (castPtr ptr) (0x01234567 :: Word32)
+    poke (castPtr ptr) (fromIntegral $ fromEnum MipsReg15 :: Word32)
     poke (plusPtr ptr 8) (0x0123456789abcdef :: Word64)
     peek (castPtr ptr) <* free ptr
 
 mipsOpMemStruct :: MipsOpMemStruct
-mipsOpMemStruct = MipsOpMemStruct 0x01234567 0x0123456789abcdef
+mipsOpMemStruct = MipsOpMemStruct MipsReg15 0x0123456789abcdef
 
 -- | MipsOpMemStruct spec
 mipsOpMemStructSpec :: Spec
