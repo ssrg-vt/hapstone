@@ -19,6 +19,7 @@ library
                        Hapstone.Internal.Util,
                        Hapstone.Internal.Arm64,
                        Hapstone.Internal.Arm,
+                       Hapstone.Internal.M68K,
                        Hapstone.Internal.Mips,
                        Hapstone.Internal.Ppc,
                        Hapstone.Internal.Sparc,

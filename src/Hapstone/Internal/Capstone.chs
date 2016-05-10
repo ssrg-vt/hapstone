@@ -82,6 +82,7 @@ import Foreign.Ptr
 import Hapstone.Internal.Util
 import qualified Hapstone.Internal.Arm64 as Arm64
 import qualified Hapstone.Internal.Arm as Arm
+import qualified Hapstone.Internal.M68K as M68K
 import qualified Hapstone.Internal.Mips as Mips
 import qualified Hapstone.Internal.Ppc as Ppc
 import qualified Hapstone.Internal.Sparc as Sparc
