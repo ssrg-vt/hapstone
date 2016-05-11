@@ -41,6 +41,8 @@ test-suite hapstone-test
                        Internal.Arm64.Default,
                        Internal.Arm.StorableSpec,
                        Internal.Arm.Default,
+                       Internal.M68K.StorableSpec,
+                       Internal.M68K.Default,
                        Internal.Mips.StorableSpec,
                        Internal.Mips.Default,
                        Internal.Ppc.StorableSpec,

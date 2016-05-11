@@ -105,7 +105,7 @@ data CsM68KOp = CsM68KOp
     } deriving (Show, Eq)
 
 instance Storable CsM68KOp where
-    sizeOf _ = 36
+    sizeOf _ = 40
     alignment _ = 8
     peek p = CsM68KOp
         <$> do
