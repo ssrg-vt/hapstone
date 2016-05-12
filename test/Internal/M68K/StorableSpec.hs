@@ -15,8 +15,8 @@ spec :: Spec
 spec = describe "Hapstone.Internal.M68K" $ do
     m68kOpMemStructSpec
     csM68KOpSpec
-    --csM68KOpSizeSpec
-    --csM68KSpec
+    m68kOpSizeSpec
+    csM68KSpec
 
 getM68KOpMemStruct :: IO M68KOpMemStruct
 getM68KOpMemStruct = do
@@ -69,25 +69,46 @@ csM68KOpSpec = describe "Storable CsM68KOp" $ do
             alloca (\p -> poke p s >> (peek p :: IO CsM68KOp)) `shouldReturn` s
     it "parses correctly" $ getCsM68KOp `shouldReturn` csM68KOp
 
-{-
+getM68KOpSize :: IO M68KOpSize
+getM68KOpSize = do
+    ptr <- mallocArray (sizeOf m68kOpSize) :: IO (Ptr Word8)
+    poke (castPtr ptr) (fromIntegral $ fromEnum M68kSizeTypeCpu :: Word32)
+    poke (plusPtr ptr 4) (fromIntegral $ fromEnum M68kCpuSizeWord :: Word32)
+    peek (castPtr ptr) <* free ptr
+
+m68kOpSize :: M68KOpSize
+m68kOpSize = Cpu M68kCpuSizeWord
+
+-- | M68KCpuSize spec
+m68kOpSizeSpec :: Spec
+m68kOpSizeSpec = describe "Storable M68KOpSize" $ do
+    it "has a memory-layout we can handle" $
+        sizeOf (undefined :: M68KOpSize) == 2 * 4
+    it "has matching peek- and poke-implementations" $ property $
+        \s -> alloca (\p -> poke p s >> (peek p :: IO M68KOpSize))
+            `shouldReturn` s
+    it "parses correctly" $ getM68KOpSize `shouldReturn` m68kOpSize
+
 getCsM68K :: IO CsM68K
 getCsM68K = do
     ptr <- mallocArray (sizeOf csM68K) :: IO (Ptr Word8)
-    poke (castPtr ptr) (1 :: Word8)
-    poke (plusPtr ptr 8) csM68KOp
+    poke (castPtr ptr) csM68KOp
+    poke (plusPtr ptr 40) csM68KOp
+    poke (plusPtr ptr 80) csM68KOp
+    poke (plusPtr ptr 120) csM68KOp
+    poke (plusPtr ptr 160) m68kOpSize
+    poke (plusPtr ptr 168) (4 :: Word8)
     peek (castPtr ptr) <* free ptr
 
 csM68K :: CsM68K
-csM68K = CsM68K [csM68KOp]
+csM68K = CsM68K [csM68KOp, csM68KOp, csM68KOp, csM68KOp] m68kOpSize
 
 -- | CsM68K spec
 csM68KSpec :: Spec
 csM68KSpec = describe "Storable CsM68K" $ do
     it "has a memory-layout we can handle" $
-        sizeOf (undefined :: CsM68K) ==
-            1 + 7 + 8 * sizeOf (undefined :: CsM68KOp)
+        sizeOf (undefined :: CsM68K) == 4 * 40 + 8 + 1 + 3
     it "has matching peek- and poke-implementations" $ property $
         \s@CsM68K{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s
     it "parses correctly" $ getCsM68K `shouldReturn` csM68K
-    -}

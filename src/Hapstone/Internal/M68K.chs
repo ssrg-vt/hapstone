@@ -171,6 +171,7 @@ instance Storable CsM68KOp where
 data M68KOpSize
     = Cpu M68KCpuSize
     | Fpu M68KFpuSize
+    | UnknownSize
     deriving (Show, Eq)
 
 instance Storable M68KOpSize where
@@ -183,29 +184,36 @@ instance Storable M68KOpSize where
               (peekByteOff p 4 :: IO Int32)
           M68kSizeTypeFpu -> (Fpu . toEnum . fromIntegral) <$>
               (peekByteOff p 4 :: IO Int32)
+          M68kSizeTypeInvalid -> pure UnknownSize
     poke p (Cpu c) = do
-        poke (castPtr p) (fromIntegral $ fromEnum c :: Int32)
-        poke (plusPtr p 4) (fromIntegral $ fromEnum M68kSizeTypeCpu :: Int32)
+        poke (plusPtr p 4) (fromIntegral $ fromEnum c :: Int32)
+        poke (castPtr p) (fromIntegral $ fromEnum M68kSizeTypeCpu :: Int32)
     poke p (Fpu f) = do
-        poke (castPtr p) (fromIntegral $ fromEnum f :: Int32)
-        poke (plusPtr p 4) (fromIntegral $ fromEnum M68kSizeTypeFpu :: Int32)
+        poke (castPtr p) (fromIntegral $ fromEnum M68kSizeTypeFpu :: Int32)
+        poke (plusPtr p 4) (fromIntegral $ fromEnum f :: Int32)
+    poke p UnknownSize = poke (castPtr p)
+        (fromIntegral $ fromEnum M68kSizeTypeInvalid :: Int32)
 
 -- | a M68K instruction and it's operands
 data CsM68K = CsM68K
-    { operands :: [CsM68KOp]
+    { operands :: [CsM68KOp] -- ^ operand list for this instruction,
+                             -- *MUST* have <= 8 elements, else you'll
+                             -- get a runtime error when you (implicitly)
+                             -- try to write it to memory via it's
+                             -- Storable instance
     , op_size :: M68KOpSize
     } deriving (Show, Eq)
 
 instance Storable CsM68K where
-    sizeOf _ = 156
+    sizeOf _ = 172
     alignment _ = 8
     peek p = CsM68K
-        <$> do num <- fromIntegral <$> {#get cs_m68k->op_count#} p
+        <$> do num <- fromIntegral <$> (peek (plusPtr p 168) :: IO Word8)
                peekArray num (castPtr p)
-        <*> (peek (plusPtr p 144) :: IO M68KOpSize)
+        <*> (peek (plusPtr p 160) :: IO M68KOpSize)
     poke p (CsM68K o s) = do
-        poke (plusPtr p 144) s
-        {#set cs_m68k->op_count#} p (fromIntegral $ length o)
+        poke (plusPtr p 160) s
+        poke (plusPtr p 168) (fromIntegral $ length o :: Word8)
         if length o > 4
            then error "operands overflew 4 elements"
            else pokeArray (castPtr p) o
