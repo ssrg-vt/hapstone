@@ -97,7 +97,7 @@ csX86Spec :: Spec
 csX86Spec = describe "Storable CsX86" $ do
     it "has a memory-layout we can handle" $
         sizeOf (undefined :: CsX86) ==
-            4 + 4 + 1 + 1 + 1 + 1 + 4 + 4 + 1 + 4 + 4 + 4 + 1 + 4 + 1 + 384
+            4 + 4 + 1 + 1 + 1 + 1 + 4 + 4 + 1 + 4 + 4 + 4 + 1 + 4 + 1 + 384 + 1
     it "has matching peek- and poke-implementations" $ property $
         \s@CsX86{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s
