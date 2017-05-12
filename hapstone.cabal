@@ -6,8 +6,8 @@ homepage:            http://github.com/ibabushkin/hapstone
 license:             BSD3
 license-file:        LICENSE
 author:              Inokentiy Babushkin
-maintainer:          inokentiy.babushkin@googlemail.com
-copyright:           2016 Inokentiy Babushkin
+maintainer:          twk@twki.de
+copyright:           2016 - 2017 Inokentiy Babushkin
 category:            Disassembler
 build-type:          Simple
 cabal-version:       >=1.10
@@ -25,7 +25,7 @@ library
                        Hapstone.Internal.SystemZ,
                        Hapstone.Internal.X86,
                        Hapstone.Internal.XCore
-  build-depends:       base >= 4.7 && < 6
+  build-depends:       base >= 4.7 && < 5
   default-language:    Haskell2010
   extra-libraries:     capstone
   extra-lib-dirs:      /home/thewormkill/clones/forks/capstone/tests
