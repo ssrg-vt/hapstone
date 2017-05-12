@@ -173,7 +173,7 @@ data CsX86 = CsX86
     } deriving (Show, Eq)
 
 instance Storable CsX86 where
-    sizeOf _ = 424
+    sizeOf _ = 432
     alignment _ = 8
     peek p = CsX86
         <$> do let bP = plusPtr p {#offsetof cs_x86->prefix#}

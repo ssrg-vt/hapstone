@@ -29,7 +29,7 @@ getX86OpMemStruct = do
 
 x86OpMemStruct :: X86OpMemStruct
 x86OpMemStruct =
-    X86OpMemStruct X86RegEax X86RegEdi X86RegDx 0x31507264 0x3df1507264 
+    X86OpMemStruct X86RegEax X86RegEdi X86RegDx 0x31507264 0x3df1507264
 
 -- | X86OpMemStruct spec
 x86OpMemStructSpec :: Spec
@@ -48,7 +48,7 @@ getCsX86Op = do
     poke (plusPtr ptr 8) (0x0123456789abcdef :: Int64)
     poke (plusPtr ptr 32) (2 :: Word8)
     poke (plusPtr ptr 33) (0 :: Word8)
-    poke (plusPtr ptr 36) (fromIntegral $ fromEnum X86AvxBcast4 :: Int32) 
+    poke (plusPtr ptr 36) (fromIntegral $ fromEnum X86AvxBcast4 :: Int32)
     poke (plusPtr ptr 40) (1 :: Word8)
     peek (castPtr ptr) <* free ptr
 
@@ -97,7 +97,7 @@ csX86Spec :: Spec
 csX86Spec = describe "Storable CsX86" $ do
     it "has a memory-layout we can handle" $
         sizeOf (undefined :: CsX86) ==
-            4 + 4 + 1 + 1 + 1 + 1 + 4 + 4 + 1 + 4 + 4 + 4 + 1 + 4 + 1 + 384 + 1
+            4 + 4 + 1 + 1 + 1 + 1 + 4 + 4 + 1 + 3 + 4 + 4 + 4 + 1 + 3 + 4 + 1 + 3 + 48 * 8
     it "has matching peek- and poke-implementations" $ property $
         \s@CsX86{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s
