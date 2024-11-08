@@ -53,11 +53,11 @@ getCsM68KOp = do
     ptr <- mallocArray (sizeOf csM68KOp) :: IO (Ptr Word8)
     poke (castPtr ptr) (72324 :: Word64)
     poke (plusPtr ptr 28) (fromIntegral $ fromEnum M68kOpImm :: Int32) 
-    poke (plusPtr ptr 32) (fromIntegral $ fromEnum M68kAmImmidiate :: Int32) 
+    poke (plusPtr ptr 32) (fromIntegral $ fromEnum M68kAmImmediate :: Int32)
     peek (castPtr ptr) <* free ptr
 
 csM68KOp :: CsM68KOp
-csM68KOp = CsM68KOp (Imm 72324) M68kAmImmidiate
+csM68KOp = CsM68KOp (Imm 72324) M68kAmImmediate
 
 -- | CsM68KOp spec
 csM68KOpSpec :: Spec
