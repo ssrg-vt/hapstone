@@ -86,7 +86,7 @@ getCsPpc = do
     poke (plusPtr ptr 4) (fromIntegral $ fromEnum PpcBhPlus :: Int32) 
     poke (plusPtr ptr 8) (1 :: Word8)
     poke (plusPtr ptr 9) (1 :: Word8)
-    poke (plusPtr ptr 12) csPpcOp
+    poke (plusPtr ptr 16) csPpcOp
     peek (castPtr ptr) <* free ptr
 
 csPpc :: CsPpc

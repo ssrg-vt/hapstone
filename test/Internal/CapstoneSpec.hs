@@ -67,18 +67,18 @@ getCsDetail = do
     pokeArray (castPtr ptr :: Ptr Word16)
         [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB]
     -- regs_read_count
-    pokeByteOff ptr 24 (12 :: Word8)
+    pokeByteOff ptr 40 (12 :: Word8)
     -- regs_write
-    pokeArray (plusPtr ptr 26 :: Ptr Word16)
+    pokeArray (plusPtr ptr 42 :: Ptr Word16)
         [ 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB
         , 0xC, 0xD, 0xE, 0xF, 0x0, 0x1, 0x2, 0x3
         ]
     -- regs_write_count
-    pokeByteOff ptr 66 (20 :: Word8)
+    pokeByteOff ptr 82 (20 :: Word8)
     -- groups
-    pokeArray (plusPtr ptr 67 :: Ptr Word8) [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7]
+    pokeArray (plusPtr ptr 83 :: Ptr Word8) [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7]
     -- groups_count
-    pokeByteOff ptr 75 (8 :: Word8)
+    pokeByteOff ptr 91 (8 :: Word8)
     peek (castPtr ptr) <* free ptr
 
 csDetail :: CsDetail
@@ -116,9 +116,9 @@ getCsInsn = do
     -- bytes
     pokeArray (plusPtr ptr 18) ([0x0..0xf] :: [Word8])
     -- mnemonic
-    pokeArray (plusPtr ptr 34) ([0x1..0x20] :: [Word8])
+    pokeArray (plusPtr ptr 42) ([0x1..0x20] :: [Word8])
     -- op_str
-    pokeArray (plusPtr ptr 66) ([0x1..0x7f] ++ [0x0] :: [Word8])
+    pokeArray (plusPtr ptr 74) ([0x1..0x7f] ++ [0x0] :: [Word8])
     peek (castPtr ptr) <* free ptr
 
 csInsn :: CsInsn
@@ -134,7 +134,7 @@ csInsnStorableSpec :: Spec
 csInsnStorableSpec = describe "Storable CsInsn" $ do
     it "has a memory layout we can manage" $
         sizeOf (undefined :: CsInsn) ==
-            4 + 4 + 8 + 2 + 208 + sizeOf nullPtr +
+            4 + 4 + 8 + 2 + 216 + sizeOf nullPtr +
                 if sizeOf nullPtr == 4 then 2 else 6 -- pointer sizes
     it "has matching peek- and poke-implementations with no detail" $
         property $ \s@CsInsn{} ->

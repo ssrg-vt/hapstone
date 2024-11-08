@@ -64,7 +64,7 @@ getCsSparc = do
     poke (castPtr ptr) (fromIntegral $ fromEnum SparcCcIccL :: Int32)
     poke (plusPtr ptr 4) (fromIntegral $ fromEnum SparcHintA :: Int32)
     poke (plusPtr ptr 8) (1 :: Word8)
-    poke (plusPtr ptr 12) csSparcOp
+    poke (plusPtr ptr 16) csSparcOp
     peek (castPtr ptr) <* free ptr
 
 csSparc :: CsSparc

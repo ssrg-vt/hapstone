@@ -204,8 +204,8 @@ instance Storable CsDetail where
         <*> pure Nothing
     poke p (CsDetail rR rW g a) = do
         {#set cs_detail->regs_read_count#} p (fromIntegral $ length rR)
-        if length rR > 12
-           then error "regs_read overflowed 12 bytes"
+        if length rR > 20
+           then error "regs_read overflew 20 bytes"
            else pokeArray (plusPtr p {#offsetof cs_detail.regs_read#}) rR
         {#set cs_detail->regs_write_count#} p (fromIntegral $ length rW)
         if length rW > 20
@@ -269,8 +269,8 @@ instance Storable CsInsn where
         {#set cs_insn->id#} p (fromIntegral i)
         {#set cs_insn->address#} p (fromIntegral a)
         {#set cs_insn->size#} p (fromIntegral $ length b)
-        if length b > 16
-           then error "bytes overflowed 16 bytes"
+        if length b > 24
+           then error "bytes overflowed 24 bytes"
            else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
         if length m >= 32
            then error "mnemonic overflowed 32 bytes"
