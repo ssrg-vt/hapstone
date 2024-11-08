@@ -205,15 +205,15 @@ instance Storable CsDetail where
     poke p (CsDetail rR rW g a) = do
         {#set cs_detail->regs_read_count#} p (fromIntegral $ length rR)
         if length rR > 12
-           then error "regs_read overflew 12 bytes"
+           then error "regs_read overflowed 12 bytes"
            else pokeArray (plusPtr p {#offsetof cs_detail.regs_read#}) rR
         {#set cs_detail->regs_write_count#} p (fromIntegral $ length rW)
         if length rW > 20
-           then error "regs_write overflew 20 bytes"
+           then error "regs_write overflowed 20 bytes"
            else pokeArray (plusPtr p {#offsetof cs_detail.regs_write#}) rW
         {#set cs_detail->groups_count#} p (fromIntegral $ length g)
         if length g > 8
-           then error "groups overflew 8 bytes"
+           then error "groups overflowed 8 bytes"
            else pokeArray (plusPtr p {#offsetof cs_detail.groups#}) g
         let bP = plusPtr p ({#offsetof cs_detail.groups_count#} + 1)
         case a of
@@ -270,16 +270,16 @@ instance Storable CsInsn where
         {#set cs_insn->address#} p (fromIntegral a)
         {#set cs_insn->size#} p (fromIntegral $ length b)
         if length b > 16
-           then error "bytes overflew 16 bytes"
+           then error "bytes overflowed 16 bytes"
            else pokeArray (plusPtr p {#offsetof cs_insn.bytes#}) b
         if length m >= 32
-           then error "mnemonic overflew 32 bytes"
+           then error "mnemonic overflowed 32 bytes"
            else do pokeArray (plusPtr p {#offsetof cs_insn.mnemonic#})
                              (map castCharToCChar m)
                    poke (plusPtr p ({#offsetof cs_insn.mnemonic#} + length m))
                         (0 :: Word8)
         if length o >= 160
-           then error "op_str overflew 160 bytes"
+           then error "op_str overflowed 160 bytes"
            else do pokeArray (plusPtr p {#offsetof cs_insn.op_str#})
                              (map castCharToCChar o)
                    poke (plusPtr p ({#offsetof cs_insn.op_str#} + length o))

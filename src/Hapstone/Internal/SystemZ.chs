@@ -120,7 +120,7 @@ instance Storable CsSysZ where
         {#set cs_sysz->cc#} p (fromIntegral $ fromEnum cc)
         {#set cs_sysz->op_count#} p (fromIntegral $ length o)
         if length o > 6
-           then error "operands overflew 6 elements"
+           then error "operands overflowed 6 elements"
            else pokeArray (plusPtr p {#offsetof cs_sysz->operands#}) o
 
 -- | SystemZ instructions

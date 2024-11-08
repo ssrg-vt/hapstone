@@ -120,7 +120,7 @@ instance Storable CsSparc where
         {#set cs_sparc->hint#} p (fromIntegral $ fromEnum h)
         {#set cs_sparc->op_count#} p (fromIntegral $ length o)
         if length o > 4
-           then error "operands overflew 4 elements"
+           then error "operands overflowed 4 elements"
            else pokeArray (plusPtr p {#offsetof cs_sparc->operands#}) o
 
 -- | SPARC instructions

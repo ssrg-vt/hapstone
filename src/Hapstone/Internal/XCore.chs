@@ -105,7 +105,7 @@ instance Storable CsXCore where
     poke p (CsXCore o) = do
         {#set cs_xcore->op_count#} p (fromIntegral $ length o)
         if length o > 8
-           then error "operands overflew 8 elements"
+           then error "operands overflowed 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_xcore->operands#}) o
 
 -- | XCore instructions

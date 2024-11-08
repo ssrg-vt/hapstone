@@ -220,7 +220,7 @@ instance Storable CsArm where
         {#set cs_arm->mem_barrier#} p (fromIntegral $ fromEnum m)
         {#set cs_arm->op_count#} p (fromIntegral $ length o)
         if length o > 36
-           then error "operands overflew 36 elements"
+           then error "operands overflowed 36 elements"
            else pokeArray (plusPtr p 40) o
 
 -- | ARM instructions

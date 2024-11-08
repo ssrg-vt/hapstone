@@ -104,7 +104,7 @@ instance Storable CsMips where
     poke p (CsMips o) = do
         {#set cs_mips->op_count#} p (fromIntegral $ length o)
         if length o > 8
-           then error "operands overflew 8 elements"
+           then error "operands overflowed 8 elements"
            else pokeArray (plusPtr p 8) o
 
 -- | MIPS instructions

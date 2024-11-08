@@ -229,7 +229,7 @@ instance Storable CsX86 where
         {#set cs_x86->eflags#} p (fromIntegral eF)
         {#set cs_x86->op_count#} p (fromIntegral $ length o)
         if length o > 8
-           then error "operands overflew 8 elements"
+           then error "operands overflowed 8 elements"
            else pokeArray (plusPtr p 64) o
 
 -- | x86 instructions

@@ -145,7 +145,7 @@ instance Storable CsPpc where
         pokeByteOff p 8 (fromBool u :: Word8) -- update_cr0
         {#set cs_ppc->op_count#} p (fromIntegral $ length o)
         if length o > 8
-           then error "operands overflew 8 elements"
+           then error "operands overflowed 8 elements"
            else pokeArray (plusPtr p {#offsetof cs_ppc->operands#}) o
 
 -- | PPC instructions
