@@ -80,8 +80,6 @@ import Foreign.Marshal.Array (peekArray, pokeArray)
 import Foreign.Ptr
 
 import Hapstone.Internal.Util
-import qualified Hapstone.Internal.Arm64 as Arm64
-import qualified Hapstone.Internal.Arm as Arm
 import qualified Hapstone.Internal.M68K as M68K
 import qualified Hapstone.Internal.Mips as Mips
 import qualified Hapstone.Internal.Ppc as Ppc
@@ -168,8 +166,6 @@ csSetSkipdata h (Just s) = do
 -- | architecture specific information
 data ArchInfo
     = X86 X86.CsX86 -- ^ x86 architecture
-    | Arm64 Arm64.CsArm64 -- ^ ARM64 architecture
-    | Arm Arm.CsArm -- ^ ARM architecture
     | Mips Mips.CsMips -- ^ MIPS architecture
     | Ppc Ppc.CsPpc -- ^ PPC architecture
     | Sparc Sparc.CsSparc -- ^ SPARC architecture
@@ -222,8 +218,6 @@ instance Storable CsDetail where
         let bP = plusPtr p ({#offsetof cs_detail.groups_count#} + 1)
         case a of
           Just (X86 x) -> poke bP x
-          Just (Arm64 x) -> poke bP x
-          Just (Arm x) -> poke bP x
           Just (Mips x) -> poke bP x
           Just (Ppc x) -> poke bP x
           Just (Sparc x) -> poke bP x
@@ -238,8 +232,6 @@ peekDetail arch p = do
     let bP = plusPtr p 48
     aI <- case arch of
             CsArchX86 -> X86 <$> peek bP
-            CsArchArm64 -> Arm64 <$> peek bP
-            CsArchArm -> Arm <$> peek bP
             CsArchMips -> Mips <$> peek bP
             CsArchPpc -> Ppc <$> peek bP
             CsArchSparc -> Sparc <$> peek bP

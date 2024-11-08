@@ -6,8 +6,6 @@ import Foreign
 import Foreign.C.Types
 
 import Hapstone.Internal.Capstone
-import Internal.Arm64.Default ()
-import Internal.Arm.Default ()
 import Internal.Mips.Default ()
 import Internal.Ppc.Default ()
 import Internal.Sparc.Default ()
@@ -48,8 +46,6 @@ instance Arbitrary CsSkipdataStruct where
 instance Arbitrary ArchInfo where
     arbitrary = oneof
         [ X86 <$> arbitrary
-        , Arm64 <$> arbitrary
-        , Arm <$> arbitrary
         , Mips <$> arbitrary
         , Ppc <$> arbitrary
         , Sparc <$> arbitrary

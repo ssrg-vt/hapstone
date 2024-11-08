@@ -17,8 +17,6 @@ library
   exposed-modules:     Hapstone.Capstone,
                        Hapstone.Internal.Capstone,
                        Hapstone.Internal.Util,
-                       Hapstone.Internal.Arm64,
-                       Hapstone.Internal.Arm,
                        Hapstone.Internal.M68K,
                        Hapstone.Internal.Mips,
                        Hapstone.Internal.Ppc,
@@ -37,11 +35,7 @@ test-suite hapstone-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       Internal.Arm64.StorableSpec,
-                       Internal.Arm64.Default,
-                       Internal.Arm.StorableSpec,
-                       Internal.Arm.Default,
-                       Internal.M68K.StorableSpec,
+  other-modules:       Internal.M68K.StorableSpec,
                        Internal.M68K.Default,
                        Internal.Mips.StorableSpec,
                        Internal.Mips.Default,
