@@ -75,18 +75,18 @@ getCsX86 = do
                    , 0x21 -- modrm
                    , 0x0 -- sib
                    ] :: [Word8])
-    poke (plusPtr ptr 12) (0x01234567 :: Int32) -- disp
-    poke (plusPtr ptr 16) (fromIntegral $ fromEnum X86RegAl :: Int32)
-    poke (plusPtr ptr 20) (0x2 :: Int8) -- sibScale
-    poke (plusPtr ptr 24) (fromIntegral $ fromEnum X86RegEdx :: Int32)
-    poke (plusPtr ptr 28) (fromIntegral $ fromEnum X86XopCcEq :: Int32)
-    poke (plusPtr ptr 32) (fromIntegral $ fromEnum X86SseCcEq :: Int32)
-    poke (plusPtr ptr 36) (fromIntegral $ fromEnum X86AvxCcEq :: Int32)
-    poke (plusPtr ptr 40) (0x1 :: Word8) -- avxSae
-    poke (plusPtr ptr 44) (fromIntegral $ fromEnum X86AvxRmRu :: Int32)
-    poke (plusPtr ptr 48) (0x0123456789abcdef :: Word64)
-    poke (plusPtr ptr 56) (0x1 :: Word8)
-    poke (plusPtr ptr 64) csX86Op
+    poke (plusPtr ptr 16) (0x01234567 :: Int32) -- disp
+    poke (plusPtr ptr 24) (fromIntegral $ fromEnum X86RegAl :: Int32)
+    poke (plusPtr ptr 28) (0x2 :: Int8) -- sibScale
+    poke (plusPtr ptr 32) (fromIntegral $ fromEnum X86RegEdx :: Int32)
+    poke (plusPtr ptr 36) (fromIntegral $ fromEnum X86XopCcEq :: Int32)
+    poke (plusPtr ptr 40) (fromIntegral $ fromEnum X86SseCcEq :: Int32)
+    poke (plusPtr ptr 44) (fromIntegral $ fromEnum X86AvxCcEq :: Int32)
+    poke (plusPtr ptr 48) (0x1 :: Word8) -- avxSae
+    poke (plusPtr ptr 52) (fromIntegral $ fromEnum X86AvxRmRu :: Int32)
+    poke (plusPtr ptr 56) (0x0123456789abcdef :: Word64)
+    poke (plusPtr ptr 64) (0x1 :: Word8)
+    poke (plusPtr ptr 72) csX86Op
     peek (castPtr ptr) <* free ptr
 
 csX86 :: CsX86
@@ -98,8 +98,7 @@ csX86 = CsX86 (Nothing, Just 0x1, Just 0x2, Just 0x3) [0x4, 0x5, 0x6, 0x7]
 csX86Spec :: Spec
 csX86Spec = describe "Storable CsX86" $ do
     it "has a memory-layout we can handle" $
-        sizeOf (undefined :: CsX86) ==
-            4 * 5 + 1 + 3 + 4 * 4 + 1 + 3 + 4 + 8 + 1 + 7 + 48 * 8
+        sizeOf (undefined :: CsX86) == 456
     it "has matching peek- and poke-implementations" $ property $
         \s@CsX86{} ->
             alloca (\p -> poke p s >> peek p) `shouldReturn` s

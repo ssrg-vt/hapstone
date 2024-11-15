@@ -178,7 +178,7 @@ data CsX86 = CsX86
     } deriving (Show, Eq)
 
 instance Storable CsX86 where
-    sizeOf _ = 448
+    sizeOf _ = 456
     alignment _ = 8
     peek p = CsX86
         <$> do let bP = plusPtr p {#offsetof cs_x86->prefix#}
@@ -197,11 +197,11 @@ instance Storable CsX86 where
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->xop_cc#} p)
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->sse_cc#} p)
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->avx_cc#} p)
-        <*> (toBool <$> (peekByteOff p 40 :: IO Word8)) -- avx_sae
+        <*> (toBool <$> (peekByteOff p {#offsetof cs_x86->avx_sae#} :: IO Word8))
         <*> ((toEnum . fromIntegral) <$> {#get cs_x86->avx_rm#} p)
         <*> (fromIntegral <$> {#get cs_x86->eflags#} p)
         <*> do num <- fromIntegral <$> {#get cs_x86->op_count#} p
-               let ptr = plusPtr p 64
+               let ptr = plusPtr p {#offsetof cs_x86->operands#}
                peekArray num ptr
     poke p (CsX86 (p0, p1, p2, p3) op r a m s d sI sS sB xC sC aC aS aR eF o) =
         do
@@ -224,13 +224,13 @@ instance Storable CsX86 where
         {#set cs_x86->xop_cc#} p (fromIntegral $ fromEnum xC)
         {#set cs_x86->sse_cc#} p (fromIntegral $ fromEnum sC)
         {#set cs_x86->avx_cc#} p (fromIntegral $ fromEnum aC)
-        pokeByteOff p 40 (fromBool aS :: Word8) -- avx_sae
+        pokeByteOff p {#offsetof cs_x86->avx_sae#} (fromBool aS :: Word8)
         {#set cs_x86->avx_rm#} p (fromIntegral $ fromEnum aR)
         {#set cs_x86->eflags#} p (fromIntegral eF)
         {#set cs_x86->op_count#} p (fromIntegral $ length o)
         if length o > 8
            then error "operands overflowed 8 elements"
-           else pokeArray (plusPtr p 64) o
+           else pokeArray (plusPtr p {#offsetof cs_x86->operands#}) o
 
 -- | x86 instructions
 {#enum x86_insn as X86Insn {underscoreToCase}
