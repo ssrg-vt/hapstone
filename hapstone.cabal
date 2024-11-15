@@ -1,5 +1,5 @@
 name:                hapstone
-version:             0.2.0.1
+version:             0.5.0.3
 synopsis:            Capstone bindings for Haskell
 description:         Please see README.md
 homepage:            http://github.com/ibabushkin/hapstone
